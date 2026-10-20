@@ -90,16 +90,28 @@ textarea { font-family: var(--f-mono); font-size: 13px; width: 100%; resize: ver
 .seg button { border: none; background: var(--panel); padding: 6px 12px; cursor: pointer; font-family: var(--f-mono); font-size: 13px; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
 
-/* breadboard view */
-.bench { display: grid; grid-template-columns: 96px minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
-.palette { display: grid; gap: 6px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); }
-.tool { display: grid; justify-items: center; gap: 2px; padding: 6px 4px 5px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 12px; color: var(--muted); }
-.tool svg { width: 44px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 1.6; }
-.tool kbd { font-family: var(--f-mono); font-size: 10px; color: var(--muted); }
+/* breadboard view: top ribbon, board left, readings frame right */
+.ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 8px; margin-bottom: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.ribbon .grow { flex: 1; }
+.ribbon-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.ribbon-sep { width: 1px; align-self: stretch; background: var(--line); }
+.ribbon-freq { display: flex; align-items: center; gap: 4px; }
+.ribbon-freq input { width: 64px; padding: 4px 6px; }
+.tool { display: flex; align-items: center; gap: 4px; padding: 4px 7px 4px 4px; border: 1px solid transparent; border-radius: 6px; background: none; cursor: pointer; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.tool:hover { background: var(--panel-2); color: var(--ink); }
+.tool svg { width: 30px; height: 16px; stroke: var(--ink); fill: none; stroke-width: 1.7; flex: none; }
+.tool kbd { font-family: var(--f-mono); font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
 .tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+#inspector .form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#inspector .form > p { grid-column: 1 / -1; }
+#inspector .form label:first-child { grid-column: 1 / -1; }
+#inspector h2 { display: flex; align-items: center; gap: 8px; }
+#inspector h2 svg { width: 40px; height: 20px; stroke: var(--ink); fill: none; stroke-width: 1.6; margin-left: auto; }
+@media (max-width: 1400px) { .tool[data-tool="select"] .lbl, .tool[data-tool="wire"] .lbl, .tool[data-tool="GND"] .lbl { display: none; } }
+.btn.sm { padding: 4px 10px; font-size: 13px; }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; align-items: start; }
 .boardcol { min-width: 0; display: grid; gap: 10px; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-.toolbar .grow { flex: 1; }
 .boardscroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 #board { display: block; width: 100%; min-width: 600px; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 #board .part { cursor: pointer; }
@@ -107,7 +119,15 @@ textarea { font-family: var(--f-mono); font-size: 13px; width: 100%; resize: ver
 #board.placing { cursor: crosshair; }
 .statusbar { font-size: 13px; color: var(--muted); min-height: 20px; font-family: var(--f-mono); }
 .statusbar b { color: var(--ink); font-weight: 500; }
-.side { display: grid; gap: 14px; }
+.readings-frame { display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 64px); max-height: calc(100vh - 80px); overflow-y: auto; }
+.readings { display: grid; }
+.rd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 6px; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 4px; }
+.rd:hover { background: var(--panel-2); }
+.rd.sel { background: var(--accent-soft); }
+.rd-name { font-weight: 600; }
+.rd-name span { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
+.rd-vals { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.rd-vals small { display: block; font-family: var(--f-body); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
 .panel h2 { margin-bottom: 8px; }
 .eyebrow { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
@@ -134,7 +154,7 @@ tr.sel td { background: var(--accent-soft); }
 tbody tr { cursor: pointer; }
 .errbox { border-left: 3px solid var(--bad); background: var(--bad-soft); padding: 8px 12px; border-radius: 4px; font-size: 14px; }
 .warnlist { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--warn); }
-.lower { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+.lower { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart text { font-family: var(--f-mono); font-size: 10px; fill: var(--muted); }
 pre.netlist { margin: 0; background: var(--panel-2); border-radius: 6px; padding: 10px; font-family: var(--f-mono); font-size: 12.5px; overflow-x: auto; white-space: pre; }
@@ -166,13 +186,13 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
 .std { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; max-width: 70ch; }
 
 @media (max-width: 1080px) {
-  .bench { grid-template-columns: 84px minmax(0, 1fr); }
-  .side { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-  .lower { grid-template-columns: minmax(0, 1fr); }
+  .bench { grid-template-columns: minmax(0, 1fr); }
+  .readings-frame { position: static; max-height: none; overflow: visible; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 }
 @media (max-width: 640px) {
-  .bench { grid-template-columns: minmax(0, 1fr); }
-  .palette { position: static; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+  .lower { grid-template-columns: minmax(0, 1fr); }
+  .ribbon { position: static; }
+  .tool span.lbl { display: none; }
   .calcgrid, .refgrid { grid-template-columns: minmax(0, 1fr); }
   h1 { font-size: 26px; }
 }
@@ -224,21 +244,26 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
 
   <!-- ================= BREADBOARD ================= -->
   <section id="view-board" role="tabpanel">
-    <div class="bench">
-      <div class="palette" id="palette" aria-label="Parts"></div>
-      <div class="boardcol">
-        <div class="toolbar">
-          <div class="seg" role="group" aria-label="Analysis">
-            <button id="mode-dc" aria-pressed="true">DC operating point</button>
-            <button id="mode-ac" aria-pressed="false">AC phasors</button>
-          </div>
-          <label class="small muted" for="freq" id="freqwrap" hidden>f =
-            <input type="text" id="freq" value="1k" size="7"> Hz</label>
-          <span class="grow"></span>
-          <label class="small muted"><input type="checkbox" id="showv" checked> Show voltages</label>
-          <button class="btn" id="btn-sample">Load sample</button>
-          <button class="btn danger" id="btn-clear">Clear board</button>
+    <div class="ribbon" role="toolbar" aria-label="Parts and analysis">
+      <div class="ribbon-group" id="palette" aria-label="Parts"></div>
+      <div class="ribbon-sep" aria-hidden="true"></div>
+      <div class="ribbon-group">
+        <div class="seg" role="group" aria-label="Analysis">
+          <button id="mode-dc" aria-pressed="true" title="DC operating point">DC</button>
+          <button id="mode-ac" aria-pressed="false" title="AC phasors">AC</button>
         </div>
+        <label class="small muted ribbon-freq" for="freq" id="freqwrap" hidden>f
+          <input type="text" id="freq" value="1k" size="5"> Hz</label>
+      </div>
+      <span class="grow"></span>
+      <div class="ribbon-group">
+        <label class="small muted"><input type="checkbox" id="showv" checked> Voltages</label>
+        <button class="btn sm" id="btn-sample">Load sample</button>
+        <button class="btn sm danger" id="btn-clear">Clear board</button>
+      </div>
+    </div>
+    <div class="bench">
+      <div class="boardcol">
         <div class="boardscroll">
           <svg id="board" viewBox="0 0 612 334" aria-label="Breadboard">
             <g id="bb-base"></g>
@@ -248,31 +273,28 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
           </svg>
         </div>
         <div class="statusbar" id="status">&nbsp;</div>
-      </div>
-      <aside class="side">
-        <div class="panel" id="inspector"></div>
-        <div class="panel" id="summary"></div>
-      </aside>
-    </div>
-    <div class="lower">
-      <div class="panel">
-        <h2>Readings</h2>
-        <div class="tablewrap" id="results"></div>
-      </div>
-      <div class="side" style="grid-column:auto">
-        <div class="panel chart" id="bodepanel">
-          <h2>Frequency response</h2>
-          <div id="bode"></div>
-        </div>
-        <div class="panel">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
-            <h2>SPICE netlist</h2>
-            <button class="btn" id="btn-copy">Copy for LTspice</button>
+        <div class="lower">
+          <div class="panel chart" id="bodepanel">
+            <h2>Frequency response</h2>
+            <div id="bode"></div>
           </div>
-          <pre class="netlist" id="netlist"></pre>
-          <p class="note" style="margin-top:8px">Paste into a new LTspice schematic's netlist (File → New, then View → SPICE Netlist) or save as a .cir file and open it.</p>
+          <div class="panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+              <h2>SPICE netlist</h2>
+              <button class="btn sm" id="btn-copy">Copy for LTspice</button>
+            </div>
+            <pre class="netlist" id="netlist"></pre>
+            <p class="note" style="margin-top:8px">Paste into a new LTspice schematic's netlist (File → New, then View → SPICE Netlist) or save as a .cir file and open it.</p>
+          </div>
         </div>
       </div>
+      <aside class="readings-frame" aria-label="Readings">
+        <div class="panel" id="inspector"></div>
+        <div class="panel">
+          <div id="summary"></div>
+          <div id="results"></div>
+        </div>
+      </aside>
     </div>
   </section>
 
@@ -669,7 +691,7 @@ function renderStatus() {
 }
 function renderPalette() {
   $('palette').innerHTML = Object.entries(PART_DEFS).map(([t, d]) =>
-    `<button class="tool" data-tool="${t}" aria-pressed="${state.tool === t}" title="${d.label} (${d.key.toUpperCase()})"><svg viewBox="0 -2 44 24">${symbol(t)}</svg>${d.label}<kbd>${d.key.toUpperCase()}</kbd></button>`).join('');
+    `<button class="tool" data-tool="${t}" aria-pressed="${state.tool === t}" title="${d.label} (${d.key.toUpperCase()})"><svg viewBox="0 -2 44 24">${symbol(t)}</svg><span class="lbl">${d.label}</span></button>`).join('');
 }
 
 function partValueText(p) {
@@ -717,31 +739,36 @@ function checkPart(p, r) {
 }
 function renderResults() {
   const el = $('results');
-  if (!result || result.empty) { el.innerHTML = '<p class="muted">Place a supply and some parts on the board to see readings here.</p>'; return; }
+  if (!result || result.empty) { el.innerHTML = '<p class="muted small">Place a supply and some parts on the board to see readings here.</p>'; return; }
   if (!result.ok) { el.innerHTML = result.errors.map(e => `<div class="errbox">${esc(e)}</div>`).join(''); return; }
   const ac = state.mode === 'AC';
   const rows = result.topo.els.map(p => {
     const r = result.parts[p.id], c = checkPart(p, r);
-    const vtxt = ac ? `${fmtEng(cabs(r.v), 'V')} ∠${fmtNum(cdeg(r.v), 1)}°` : fmtEng(r.v[0], 'V');
-    let itxt = ac ? `${fmtEng(cabs(r.i), 'A')} ∠${fmtNum(cdeg(r.i), 1)}°` : fmtEng(r.i[0], 'A');
-    let ptxt = fmtEng(r.p, 'W');
-    if (p.type === 'VDC' || p.type === 'VAC') { itxt = ac ? `${fmtEng(cabs(r.i), 'A')} ∠${fmtNum(cdeg([-r.i[0], -r.i[1]]), 1)}°` : fmtEng(-r.i[0], 'A') + ' out'; ptxt = fmtEng(-r.p, 'W') + ' out'; }
-    return `<tr data-part="${p.id}" class="${state.selected === p.id ? 'sel' : ''}"><td><b>${esc(p.name)}</b></td><td>${esc(partValueText(p))}</td><td class="num mono">${vtxt}</td><td class="num mono">${itxt}</td><td class="num mono">${ptxt}</td><td><span class="chip ${c.cls}">${esc(c.text)}</span></td></tr>`;
+    const vtxt = ac ? `${fmtEng(cabs(r.v), 'V')}<br>∠${fmtNum(cdeg(r.v), 1)}°` : fmtEng(r.v[0], 'V');
+    let itxt = ac ? `${fmtEng(cabs(r.i), 'A')}<br>∠${fmtNum(cdeg(r.i), 1)}°` : fmtEng(r.i[0], 'A');
+    let ptxt = fmtEng(r.p, 'W'), il = ac ? 'I rms' : 'Current', pl = ac ? 'P avg' : 'Power';
+    if (p.type === 'VDC' || p.type === 'VAC') {
+      itxt = ac ? `${fmtEng(cabs(r.i), 'A')}<br>∠${fmtNum(cdeg([-r.i[0], -r.i[1]]), 1)}°` : fmtEng(-r.i[0], 'A');
+      ptxt = fmtEng(-r.p, 'W'); il += ' out'; pl += ' out';
+    }
+    return `<div class="rd ${state.selected === p.id ? 'sel' : ''}" data-part="${p.id}" role="button" tabindex="0">
+      <div class="rd-name">${esc(p.name)}<span>${esc(partValueText(p))}</span></div><span class="chip ${c.cls}">${esc(c.text)}</span>
+      <div class="rd-vals"><div><small>${ac ? 'V rms' : 'Voltage'}</small>${vtxt}</div><div><small>${il}</small>${itxt}</div><div><small>${pl}</small>${ptxt}</div></div></div>`;
   }).join('');
-  el.innerHTML = `<table><thead><tr><th>Part</th><th>Value</th><th class="num">${ac ? 'V (rms)' : 'Voltage'}</th><th class="num">${ac ? 'I (rms)' : 'Current'}</th><th class="num">${ac ? 'P avg' : 'Power'}</th><th>Check</th></tr></thead><tbody>${rows}</tbody></table>` +
+  el.innerHTML = `<div class="readings">${rows}</div>` +
     (result.warnings.length ? `<ul class="warnlist">${result.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '') +
-    `<p class="note" style="margin-top:8px">Voltage and current are measured from the first lead to the second (for LEDs and supplies, + to −). ${ac ? 'AC values are rms phasors at ' + fmtEng(state.freq, 'Hz') + '; DC supplies act as shorts and LEDs use their small-signal resistance.' : 'Capacitors are open and inductors are shorts at DC.'}${result.topo.autoGround ? ' No ground marker placed, so the − lead of the first supply is 0 V.' : ''}</p>`;
+    `<p class="note" style="margin-top:8px">Measured from the first lead to the second (for LEDs and supplies, + to −). ${ac ? 'AC values are rms phasors at ' + fmtEng(state.freq, 'Hz') + '; DC supplies act as shorts and LEDs use their small-signal resistance.' : 'Capacitors are open and inductors are shorts at DC.'}${result.topo.autoGround ? ' No ground marker placed, so the − lead of the first supply is 0 V.' : ''}</p>`;
 }
 function renderSummary() {
   const el = $('summary');
-  if (!result || result.empty) { el.innerHTML = '<h2>Health check</h2><p class="muted small">Nothing to check yet.</p>'; return; }
-  if (!result.ok) { el.innerHTML = `<h2>Health check</h2><span class="chip bad">Can't solve</span><p class="small">${esc(result.errors[0])}</p>`; return; }
+  if (!result || result.empty) { el.innerHTML = '<h2>Readings</h2>'; return; }
+  if (!result.ok) { el.innerHTML = `<h2>Readings</h2><span class="chip bad">Can't solve</span>`; return; }
   const counts = { ok: 0, warn: 0, bad: 0 };
   for (const p of result.topo.els) { const c = checkPart(p, result.parts[p.id]).cls; if (counts[c] !== undefined) counts[c]++; }
   const supplies = result.topo.els.filter(p => p.type === 'VDC' || p.type === 'VAC');
   const totalP = supplies.reduce((s, p) => s + -result.parts[p.id].p, 0);
-  el.innerHTML = `<h2>Health check</h2><div class="chips">${counts.ok ? `<span class="chip ok">${counts.ok} within rating</span>` : ''}${counts.warn ? `<span class="chip warn">${counts.warn} near a limit</span>` : ''}${counts.bad ? `<span class="chip bad">${counts.bad} over a limit</span>` : ''}${result.warnings.length ? `<span class="chip warn">${result.warnings.length} wiring note${result.warnings.length > 1 ? 's' : ''}</span>` : ''}</div>
-    <dl class="res" style="margin-top:10px"><dt>Nodes solved</dt><dd>${result.topo.used.size}</dd><dt>Supply power</dt><dd>${fmtEng(totalP, 'W')}</dd><dt>Ground</dt><dd>${esc(netName(result.topo.gnd, result.topo))}</dd></dl>`;
+  el.innerHTML = `<h2>Readings</h2><div class="chips">${counts.ok ? `<span class="chip ok">${counts.ok} within rating</span>` : ''}${counts.warn ? `<span class="chip warn">${counts.warn} near a limit</span>` : ''}${counts.bad ? `<span class="chip bad">${counts.bad} over a limit</span>` : ''}${result.warnings.length ? `<span class="chip warn">${result.warnings.length} wiring note${result.warnings.length > 1 ? 's' : ''}</span>` : ''}</div>
+    <p class="note" style="margin:8px 0 4px">${result.topo.used.size} nodes · supplies deliver ${fmtEng(totalP, 'W')} · ground on ${esc(netName(result.topo.gnd, result.topo))}</p>`;
 }
 
 function fieldRow(id, label, value, extra = '') { return `<label for="${id}">${label}<span class="inrow"><input type="text" id="${id}" value="${esc(value)}">${extra}</span></label>`; }
@@ -750,9 +777,9 @@ function renderInspector() {
   const el = $('inspector');
   const p = state.parts.find(x => x.id === state.selected);
   if (!p) {
-    el.innerHTML = `<div class="eyebrow">Inspector</div><h2>How the board works</h2>
-      <p class="small">Each numbered column is one connected strip: holes a–e join, holes f–j join, and the center channel separates them. The rails run the full length. Holes are on a 2.54 mm (0.1 in) pitch, like a real half-size board.</p>
-      <p class="small muted">Pick a part on the left, then click two holes for its leads. Values snap to the series chosen at the top.</p>`;
+    el.innerHTML = `<div class="eyebrow">Inspector</div>
+      <p class="small" style="margin:4px 0 0">Pick a part in the ribbon, then click two holes for its leads. Click a placed part or a reading to edit it.</p>
+      <p class="small muted" style="margin:6px 0 0">Columns a–e and f–j are each one connected strip; the rails run the full length. 2.54 mm pitch, like a real half-size board.</p>`;
     return;
   }
   const d = PART_DEFS[p.type];
@@ -787,11 +814,10 @@ function renderInspector() {
   }
   const r = result && result.ok && result.parts[p.id];
   const where = p.type === 'GND' ? holeName(p.a) : `${holeName(p.a)} → ${holeName(p.b)}`;
-  el.innerHTML = `<div class="eyebrow">Inspector · ${esc(where)}</div><h2>${esc(p.name)} <span class="muted" style="font-weight:500">${d.label}</span></h2>
-    <div class="symbol-preview"><svg viewBox="0 -2 44 24">${symbol(p.type === 'wire' ? 'wire' : p.type)}</svg><span>${p.type === 'R' ? (state.sym === 'IEC' ? 'IEC 60617 resistor (rectangle)' : 'IEEE 315 resistor (zigzag)') : 'Schematic symbol'}</span></div>
+  el.innerHTML = `<div class="eyebrow">Inspector · ${esc(where)}</div><h2>${esc(p.name)} <span class="muted" style="font-weight:500">${d.label}</span><svg viewBox="0 -2 44 24" aria-label="${p.type === 'R' ? (state.sym === 'IEC' ? 'IEC 60617 symbol' : 'IEEE 315 symbol') : 'schematic symbol'}">${symbol(p.type === 'wire' ? 'wire' : p.type)}</svg></h2>
     <div class="form" style="margin-top:10px">${f}</div>
-    ${r ? `<dl class="res" style="margin-top:10px"><dt>Across</dt><dd>${state.mode === 'DC' ? fmtEng(r.v[0], 'V') : fmtEng(cabs(r.v), 'V') + ' ∠' + fmtNum(cdeg(r.v), 1) + '°'}</dd><dt>Through</dt><dd>${state.mode === 'DC' ? fmtEng(r.i[0], 'A') : fmtEng(cabs(r.i), 'A') + ' ∠' + fmtNum(cdeg(r.i), 1) + '°'}</dd></dl>` : ''}
-    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn danger" id="in-del">Delete</button><button class="btn" id="in-done">Done</button></div>`;
+    ${r ? `<dl class="res" style="margin-top:10px;grid-template-columns:auto 1fr auto 1fr"><dt>Across</dt><dd>${state.mode === 'DC' ? fmtEng(r.v[0], 'V') : fmtEng(cabs(r.v), 'V') + ' ∠' + fmtNum(cdeg(r.v), 1) + '°'}</dd><dt>Through</dt><dd>${state.mode === 'DC' ? fmtEng(r.i[0], 'A') : fmtEng(cabs(r.i), 'A') + ' ∠' + fmtNum(cdeg(r.i), 1) + '°'}</dd></dl>` : ''}
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm danger" id="in-del">Delete</button><button class="btn sm" id="in-done">Done</button></div>`;
 }
 function renderBode() {
   const panel = $('bodepanel');
@@ -920,7 +946,8 @@ $('inspector').addEventListener('click', e => {
   else if (e.target.id === 'in-snap') { p.value = snap(p.value, p.type === 'R' ? state.series : 'E12'); renderBoardView(); }
   else if (e.target.dataset.wc) { p.color = e.target.dataset.wc; renderBoardView(); }
 });
-$('results').addEventListener('click', e => { const tr = e.target.closest('tr[data-part]'); if (tr) { state.tool = 'select'; state.selected = tr.dataset.part; renderPalette(); renderBoardView(); } });
+$('results').addEventListener('click', e => { const tr = e.target.closest('[data-part]'); if (tr) { state.tool = 'select'; state.selected = tr.dataset.part; renderPalette(); renderBoardView(); } });
+$('results').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.rd')) { e.preventDefault(); e.target.click(); } });
 $('bode').addEventListener('change', e => { if (e.target.id === 'probe') { state.probe = e.target.value; renderBoardView(); } });
 $('mode-dc').addEventListener('click', () => { state.mode = 'DC'; renderBoardView(); });
 $('mode-ac').addEventListener('click', () => { state.mode = 'AC'; renderBoardView(); });
