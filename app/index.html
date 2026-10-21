@@ -98,11 +98,32 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .tool svg { width: 30px; height: 16px; stroke: var(--ink); fill: none; stroke-width: 1.7; flex: none; }
 .tool kbd { font-family: var(--f-mono); font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
 .tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
-#inspector .form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-#inspector .form > p { grid-column: 1 / -1; }
-#inspector .form label:first-child { grid-column: 1 / -1; }
-#inspector h2 { display: flex; align-items: center; gap: 8px; }
-#inspector h2 svg { width: 40px; height: 20px; stroke: var(--ink); fill: none; stroke-width: 1.6; margin-left: auto; }
+/* two-row ribbon: part types on top, the inspector underneath */
+.ribbon { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0; padding: 0; }
+.ribbon-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 8px; position: relative; }
+.boardbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.boardbar .grow { flex: 1; }
+#libsearch { align-self: center; }
+.ptype { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 54px; padding: 4px 4px 3px; border: 1px solid transparent; border-radius: 3px; background: none; cursor: pointer; color: var(--muted); font-family: var(--f-display); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.ptype svg { width: 30px; height: 18px; stroke: var(--accent-2); fill: none; stroke-width: 1.6; }
+.ptype:hover { background: var(--accent-soft); color: var(--ink); }
+.ptype[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); box-shadow: var(--glow); }
+.insp { border-top: 1px solid var(--line); padding: 8px 12px 10px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px; min-height: 58px; background: rgba(217, 168, 78, 0.04); }
+.insp-title { display: flex; align-items: center; gap: 8px; align-self: center; min-width: 150px; }
+.insp-title svg { width: 34px; height: 20px; stroke: var(--accent-2); fill: none; stroke-width: 1.6; flex: none; }
+.insp-title b { font-family: var(--f-display); letter-spacing: 0.06em; color: var(--accent-2); font-size: 15px; display: block; line-height: 1.1; }
+.insp-title small { display: block; color: var(--muted); font-size: 11.5px; max-width: 240px; line-height: 1.25; }
+.insp .form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; }
+.insp .form label { display: grid; gap: 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--f-display); color: var(--muted); }
+.insp .form input[type="text"] { width: 88px; padding: 4px 6px; }
+.insp .form select { padding: 4px 6px; max-width: 230px; }
+.insp .form .btn { padding: 4px 8px; }
+.insp .form input[type="range"] { width: 140px; }
+.insp .form > p, .insp .pinout { font-size: 12px; max-width: 300px; align-self: center; margin: 0; }
+.insp-hint { align-self: center; font-size: 12.5px; color: var(--muted); max-width: 520px; }
+.insp-actions .insp-hint { max-width: 230px; text-align: right; }
+.insp-hint b { color: var(--accent-2); font-weight: 500; }
+.insp-actions { display: flex; gap: 6px; margin-left: auto; align-self: center; flex-wrap: wrap; }
 .tool .lbl { display: none; } /* icons only; the title gives the name and hotkey */
 .libbtn { display: flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 13px; color: var(--ink); }
 .libbtn svg { width: 9px; height: 6px; stroke: var(--muted); fill: none; stroke-width: 1.6; }
@@ -136,7 +157,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 #board.placing { cursor: crosshair; }
 .statusbar { font-size: 13px; color: var(--muted); min-height: 20px; font-family: var(--f-mono); }
 .statusbar b { color: var(--ink); font-weight: 500; }
-.readings-frame { display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 64px); max-height: calc(100vh - 80px); overflow-y: auto; }
+.readings-frame { display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--ribbon-h, 64px) + 12px); max-height: calc(100vh - var(--ribbon-h, 64px) - 28px); overflow-y: auto; }
 .readings { display: grid; }
 .rd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 6px; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 4px; }
 .rd:hover { background: var(--panel-2); }
@@ -249,7 +270,6 @@ h2, h3 { font-family: var(--f-display); font-weight: 600; text-transform: upperc
 .panel::after { bottom: 5px; right: 5px; border-bottom: 1px solid var(--accent); border-right: 1px solid var(--accent); box-shadow: 3px 3px 0 -2px var(--accent); }
 .panel h2 { display: flex; align-items: center; gap: 10px; }
 .panel h2::after { content: ""; flex: 1; height: 5px; min-width: 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-#inspector h2::after { display: none; }
 .eyebrow { color: var(--accent); letter-spacing: 0.16em; font-family: var(--f-display); }
 .ribbon { top: calc(env(safe-area-inset-top, 0px) + 6px); }
 .ribbon-sep { width: 7px; background: none; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
@@ -261,16 +281,15 @@ option { background: var(--panel-solid); color: var(--ink); }
 .libbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); }
 .libbtn { font-size: 11.5px; letter-spacing: 0.08em; padding: 5px 8px; }
 .ribbon .btn.sm { font-size: 11.5px; letter-spacing: 0.08em; }
-.ribbon { gap: 6px 8px; }
-#libcats { gap: 4px; }
+.ribbon { gap: 0; }
 .ribbon .tool { padding: 4px 5px; }
 .ribbon .tool svg { width: 24px; }
-#sample { width: 108px; }
+#sample { width: 210px; }
 .btn.danger { color: var(--bad); }
 .seg { border-color: var(--accent); border-radius: 3px; }
 .seg button { background: transparent; color: var(--muted); }
 .tool { color: var(--muted); border-radius: 3px; }
-.tool svg, .libitem svg, .placing-chip svg, #inspector h2 svg { stroke: var(--accent-2); }
+.tool svg, .libitem svg, .placing-chip svg { stroke: var(--accent-2); }
 .tool:hover { background: var(--accent-soft); color: var(--ink); }
 .tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow); }
 .placing-chip { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); box-shadow: 0 0 14px rgba(217, 168, 78, 0.25); border-radius: 3px; }
@@ -351,30 +370,31 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
 
   <!-- ================= BREADBOARD ================= -->
   <section id="view-board" role="tabpanel">
-    <div class="ribbon" id="ribbon" role="toolbar" aria-label="Parts and analysis">
+    <div class="ribbon" id="ribbon" aria-label="Parts, inspector and analysis">
+     <div class="ribbon-row" role="toolbar" aria-label="Parts and analysis">
       <div class="ribbon-group" id="palette" aria-label="Tools"></div>
       <div class="ribbon-sep" aria-hidden="true"></div>
-      <div class="ribbon-group" id="libcats" aria-label="Parts library"></div>
-      <input type="search" id="libsearch" placeholder="Search…" title="Search parts (press /)" aria-label="Search parts" autocomplete="off">
-      <div class="ribbon-sep" aria-hidden="true"></div>
-      <div class="ribbon-group">
-        <div class="seg" role="group" aria-label="Analysis">
-          <button id="mode-dc" aria-pressed="true" title="DC operating point">DC</button>
-          <button id="mode-ac" aria-pressed="false" title="AC phasors">AC</button>
-        </div>
-        <label class="small muted ribbon-freq" for="freq" id="freqwrap" hidden>f
-          <input type="text" id="freq" value="1k" size="5"> Hz</label>
-      </div>
+      <div class="ribbon-group" id="ptypes" aria-label="Part types"></div>
       <span class="grow"></span>
-      <div class="ribbon-group">
-        <label class="small muted" title="Show node voltages on the board"><input type="checkbox" id="showv" checked> Volts</label>
-        <select id="sample" aria-label="Sample circuits"></select>
-        <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
-      </div>
+      <input type="search" id="libsearch" placeholder="Part no…" title="Search by part number or name (press /)" aria-label="Search parts" autocomplete="off">
       <div id="libpop" class="libpop" hidden></div>
+     </div>
+     <div class="insp" id="inspector" aria-label="Inspector" aria-live="polite"></div>
     </div>
     <div class="bench">
       <div class="boardcol">
+        <div class="boardbar" aria-label="Analysis">
+          <div class="seg" role="group" aria-label="Analysis">
+            <button id="mode-dc" aria-pressed="true" title="DC operating point">DC</button>
+            <button id="mode-ac" aria-pressed="false" title="AC phasors">AC</button>
+          </div>
+          <label class="small muted ribbon-freq" for="freq" id="freqwrap" hidden>f
+            <input type="text" id="freq" value="1k" size="5"> Hz</label>
+          <label class="small muted" title="Show node voltages on the board"><input type="checkbox" id="showv" checked> Show voltages</label>
+          <span class="grow"></span>
+          <select id="sample" aria-label="Sample circuits"></select>
+          <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
+        </div>
         <div class="boardscroll">
           <svg id="board" viewBox="0 0 612 334" aria-label="Breadboard">
             <g id="bb-base"></g>
@@ -400,7 +420,6 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
         </div>
       </div>
       <aside class="readings-frame" aria-label="Readings">
-        <div class="panel" id="inspector"></div>
         <div class="panel">
           <div id="summary"></div>
           <div id="results"></div>
@@ -575,11 +594,25 @@ const symSvg = (key, cls = '') => `<svg class="${cls}" viewBox="0 -3 44 26" aria
 
 /* ---------- parts ---------- */
 const QUICK_TOOLS = { select: { label: 'Select', key: 'v' }, wire: { label: 'Jumper', key: 'w' }, GND: { label: 'Ground', key: 'g' } };
-const CATEGORIES = ['Passives', 'Controls', 'Sources', 'Semiconductors', 'ICs'];
+// one ribbon button per kind of part; the inspector row below picks the exact part and its values
+const PART_TYPES = [
+  ['R', 'Resistor'], ['C', 'Capacitor'], ['L', 'Inductor'], ['POT', 'Pot'], ['SW', 'Switch'], null,
+  ['VDC', 'DC supply'], ['VAC', 'AC source'], null,
+  ['D', 'Diode'], ['LED', 'LED'], ['BJT', 'Transistor'], ['MOS', 'MOSFET'], null,
+  ['OPAMP', 'Op-amp'], ['REG', 'Regulator']
+];
+const TYPE_NOUN = { R: 'resistor', C: 'capacitor', L: 'inductor', POT: 'potentiometer', SW: 'switch', VDC: 'DC supply', VAC: 'AC source', D: 'diode', LED: 'LED', BJT: 'transistor', MOS: 'MOSFET', OPAMP: 'op-amp', REG: 'regulator' };
+const firstOfType = t => CATALOG.find(c => c.type === t);
 const HOTKEYS = { r: 'R-CF', c: 'C-X7R', l: 'L-AX', d: 'LED-red', b: 'V-BENCH', a: 'VAC-GEN', q: 'Q-2N3904', u: 'U-LM358' };
 const NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', BJT: 'Q', MOS: 'M', OPAMP: 'U', REG: 'U' };
 const WIRE_COLORS = ['#d23b3b', '#2b63c4', '#e3a514', '#2a9455', '#8a4fc2', '#e07128', '#2b2f33'];
 function toolLabel(t) { return QUICK_TOOLS[t] ? QUICK_TOOLS[t].label : CATALOG_BY_ID[t] ? (CATALOG_BY_ID[t].mpn.startsWith('Model') || CATALOG_BY_ID[t].type === 'R' || CATALOG_BY_ID[t].type === 'C' || CATALOG_BY_ID[t].type === 'L' ? CATALOG_BY_ID[t].name : CATALOG_BY_ID[t].mpn + ' ' + CATALOG_BY_ID[t].name.toLowerCase()) : t; }
+function draftProps() {
+  const d = state.draft; if (!d) return {};
+  const o = JSON.parse(JSON.stringify(d));
+  for (const k of ['id', 'name', 'a', 'b', 'pins', 'type']) delete o[k];
+  return o;
+}
 function nextName(type) {
   const pre = NAME_PREFIX[type];
   const n = state.parts.filter(p => p.name && new RegExp('^' + pre + '\\d+$').test(p.name)).map(p => +p.name.slice(pre.length));
@@ -647,7 +680,7 @@ function loadSample(key) {
 const saved = store.get('bb-bench-v2') || store.get('bb-bench-v1');
 const state = {
   tab: 'board', series: 'E24', sym: 'IEC', tool: 'select', pending: null, hover: null, selected: null,
-  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: ''
+  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: '', draft: null, drafts: {}
 };
 if (saved && Array.isArray(saved.parts)) {
   Object.assign(state, { series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
@@ -906,7 +939,6 @@ function renderStatus() {
     else el.innerHTML = state.pending ? `Now click where the second lead of the ${esc(c.name.toLowerCase())} goes. Esc cancels.`
       : `Click the hole for the first lead of the ${esc(c.name.toLowerCase())}${c.type === 'LED' || c.type === 'D' ? ' (anode)' : c.type === 'VDC' || c.type === 'VAC' ? ' (+ terminal)' : c.polarized || (c.defaults && c.defaults.polarized) ? ' (+ lead)' : ''}.`;
   } else el.innerHTML = 'Hover a hole to see which holes are connected and the voltage there. Click a part to edit it; click a switch to flip it.';
-  if (c) el.innerHTML = `<span class="placing-chip">${symSvg(symbolKey(c))}${esc(toolLabel(state.tool))}<button id="placing-x" aria-label="Stop placing">×</button></span> ` + el.innerHTML;
 }
 
 /* ---------- ribbon: quick tools, library menus, search ---------- */
@@ -914,10 +946,8 @@ function renderPalette() {
   const cur = CATALOG_BY_ID[state.tool];
   $('palette').innerHTML = Object.entries(QUICK_TOOLS).map(([t, d]) =>
     `<button class="tool" data-tool="${t}" aria-pressed="${state.tool === t}" title="${d.label} (${d.key.toUpperCase()})">${symSvg(t)}<span class="lbl">${d.label}</span></button>`).join('');
-  $('libcats').innerHTML = CATEGORIES.map(cat => {
-    const active = cur && cur.cat === cat;
-    return `<button class="libbtn" data-cat="${cat}" aria-expanded="${state.menu === cat}" aria-pressed="${!!active}">${cat}<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1 L5 5 L9 1"/></svg></button>`;
-  }).join('');
+  const curType = cur ? cur.type : (state.parts.find(x => x.id === state.selected) || {}).type;
+  $('ptypes').innerHTML = PART_TYPES.map(t => t ? `<button class="ptype" data-ptype="${t[0]}" aria-pressed="${curType === t[0]}" title="${t[1]}">${symSvg(symbolKey(firstOfType(t[0])))}${t[1]}</button>` : '<div class="ribbon-sep" aria-hidden="true"></div>').join('');
 }
 function libItemsFor() {
   const q = state.query.trim().toLowerCase();
@@ -1100,6 +1130,12 @@ function renderResults() {
     (result.warnings.length ? `<ul class="warnlist">${result.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '') +
     `<p class="note" style="margin-top:8px">Two-lead parts read from the first lead to the second (for diodes and supplies, + to −). ${ac ? 'AC values are rms small-signal phasors at ' + fmtEng(state.freq, 'Hz') + ', linearized at the DC operating point; DC supplies act as shorts. Rating checks use the DC operating point.' : 'Capacitors are open and inductors are shorts at DC.'}${result.topo.autoGround ? ' No ground marker placed, so the − lead of the first supply is 0 V.' : ''}</p>`;
 }
+function revealSelectedReading() {
+  const fr = document.querySelector('.readings-frame'), row = fr && fr.querySelector('.rd.sel');
+  if (!row || fr.scrollHeight <= fr.clientHeight) return;
+  const top = row.getBoundingClientRect().top - fr.getBoundingClientRect().top;
+  if (top < 0 || top + row.offsetHeight > fr.clientHeight) fr.scrollTop += top - 40;
+}
 function renderSummary() {
   const el = $('summary');
   if (!result || result.empty) { el.innerHTML = '<h2>Readings</h2>'; return; }
@@ -1116,68 +1152,72 @@ function renderSummary() {
 function fieldRow(id, label, value, extra = '') { return `<label for="${id}">${label}<span class="inrow"><input type="text" id="${id}" value="${esc(value)}">${extra}</span></label>`; }
 function selectRow(id, label, opts, cur) { return `<label for="${id}">${label}<select id="${id}">${opts.map(([v, t]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`; }
 const engIn = (v, sig = 4) => fmtEng(v, '', sig).replace(' ', '');
+const inspTarget = () => state.parts.find(x => x.id === state.selected) || state.draft;
 function renderInspector() {
   const el = $('inspector');
-  const p = state.parts.find(x => x.id === state.selected);
+  const p = inspTarget();
+  const hint = t => `<span class="insp-hint">${t}</span>`;
   if (!p) {
-    el.innerHTML = `<div class="eyebrow">Inspector</div>
-      <p class="small" style="margin:4px 0 0">Open a category in the ribbon (or search by part number), pick a part, then click the board. Click a placed part or a reading to edit it.</p>
-      <p class="small muted" style="margin:6px 0 0">Columns a–e and f–j are each one connected strip; the rails run the full length. DIP chips straddle the center channel. 2.54 mm pitch, like a real half-size board.</p>`;
+    el.innerHTML = state.tool === 'wire' ? hint('<b>Jumper:</b> click the hole for one end, then the other. Esc cancels.')
+      : state.tool === 'GND' ? hint('<b>Ground:</b> click a hole to make that strip 0 V.')
+      : hint('<b>Inspector.</b> Pick a part type above to set its values here before you place it, or click a part on the board to edit it. Columns a–e and f–j are connected strips; chips straddle the center channel.');
     return;
   }
+  const isDraft = p === state.draft;
+  const actions = btns => `<div class="insp-actions">${btns}</div>`;
   if (p.type === 'wire' || p.type === 'GND') {
-    el.innerHTML = `<div class="eyebrow">Inspector · ${esc(holeName(p.a))}${p.b ? ' → ' + esc(holeName(p.b)) : ''}</div><h2>${p.type === 'wire' ? 'Jumper wire' : 'Ground marker'}</h2>
-      ${p.type === 'wire' ? `<div class="form" style="margin-top:8px"><label>Color<span class="inrow">${WIRE_COLORS.map(c => `<button class="btn" data-wc="${c}" style="background:${c};width:28px;height:24px;padding:0;${p.color === c ? 'outline:2px solid var(--ink);outline-offset:1px' : ''}" aria-label="wire color"></button>`).join('')}</span></label></div>` : '<p class="small muted">This net is 0 V. Only one ground marker is kept.</p>'}
-      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm danger" id="in-del">Delete</button><button class="btn sm" id="in-done">Done</button></div>`;
+    el.innerHTML = `<div class="insp-title">${symSvg(p.type === 'wire' ? 'wire' : 'GND')}<span><b>${p.type === 'wire' ? 'Jumper wire' : 'Ground marker'}</b><small>${esc(holeName(p.a))}${p.b ? ' → ' + esc(holeName(p.b)) : ''}</small></span></div>
+      ${p.type === 'wire' ? `<div class="form"><label>Color<span class="inrow">${WIRE_COLORS.map(c => `<button class="btn" data-wc="${c}" style="background:${c};width:24px;height:22px;padding:0;${p.color === c ? 'outline:2px solid var(--accent-2);outline-offset:1px' : ''}" aria-label="wire color"></button>`).join('')}</span></label></div>` : hint('This strip is 0 V. Only one ground marker is kept.')}
+      ${actions('<button class="btn sm danger" id="in-del">Delete</button><button class="btn sm" id="in-done">Done</button>')}`;
     return;
   }
   const c = catalogOf(p);
-  const family = CATALOG.filter(x => x.type === p.type && (x.footprint || null) === (c.footprint || null) && (p.type !== 'OPAMP' || x.units.length === c.units.length));
+  const family = isDraft ? CATALOG.filter(x => x.type === p.type)
+    : CATALOG.filter(x => x.type === p.type && (x.footprint || null) === (c.footprint || null) && (p.type !== 'OPAMP' || x.units.length === c.units.length));
   let f = '';
-  if (family.length > 1) f += selectRow('in-model', 'Part', family.map(x => [x.id, (x.mpn.startsWith('Model') || ['R', 'C', 'L', 'LED'].includes(x.type) ? x.name : x.mpn + ' — ' + x.name)]), c.id);
+  if (family.length > 1 && p.type !== 'LED') f += selectRow('in-model', 'Part', family.map(x => [x.id, (x.mpn.startsWith('Model') || ['R', 'C', 'L'].includes(x.type) ? x.name : x.mpn + ' — ' + x.name)]), c.id);
   if (p.type === 'R') {
     f += fieldRow('in-value', 'Resistance (Ω)', engIn(p.value), `<button class="btn" id="in-snap" title="Snap to ${state.series}">${state.series}</button>`);
     f += selectRow('in-tol', 'Tolerance', [[20, '±20%'], [10, '±10% (silver)'], [5, '±5% (gold)'], [2, '±2% (red)'], [1, '±1% (brown)'], [0.5, '±0.5% (green)'], [0.25, '±0.25% (blue)'], [0.1, '±0.1% (violet)']], p.tol);
-    f += selectRow('in-prating', 'Power rating', POWER_RATINGS.map(w => [w, fmtEng(w, 'W')]), p.pRating);
+    f += selectRow('in-prating', 'Power', POWER_RATINGS.map(w => [w, fmtEng(w, 'W')]), p.pRating);
     const bands = colorBands(p.value, p.tol);
-    f += `<p class="small muted" style="margin:0">Bands: ${bands ? bands.map(b => b.n).join(', ') : '—'} · Code ${rkm(p.value)}${isInSeries(p.value, 'E24') || isInSeries(p.value, 'E96') ? '' : ' · <span style="color:var(--warn)">not a standard E-series value</span>'}</p>`;
+    f += `<p class="muted">Bands ${bands ? bands.map(b => b.n).join(', ') : '—'} · code ${rkm(p.value)}${isInSeries(p.value, 'E24') || isInSeries(p.value, 'E96') ? '' : ' · <span style="color:var(--warn)">not a standard E-series value</span>'}</p>`;
   } else if (p.type === 'C') {
     f += fieldRow('in-value', 'Capacitance (F)', engIn(p.value), `<button class="btn" id="in-snap">E12</button>`);
     f += selectRow('in-vrating', 'Voltage rating', [6.3, 10, 16, 25, 35, 50, 63, 100, 250, 400].map(v => [v, v + ' V']), p.vRating);
-    f += `<p class="small muted" style="margin:0">${p.polarized ? `Polarized: first lead is +. ESR ${fmtEng(p.esr || 0, 'Ω')} is included in AC.` : 'Marked ' + capCodeEncode(p.value) + '.'}</p>`;
+    f += `<p class="muted">${p.polarized ? `Polarized: first lead is +. ESR ${fmtEng(p.esr || 0, 'Ω')} included in AC.` : 'Marked ' + capCodeEncode(p.value) + '.'}</p>`;
   } else if (p.type === 'L') {
     f += fieldRow('in-value', 'Inductance (H)', engIn(p.value), `<button class="btn" id="in-snap">E12</button>`);
-    f += fieldRow('in-dcr', 'Winding resistance DCR (Ω)', engIn(p.dcr || 0));
+    f += fieldRow('in-dcr', 'DCR (Ω)', engIn(p.dcr || 0));
     f += fieldRow('in-irating', 'Rated current (A)', engIn(p.iRating, 3));
   } else if (p.type === 'LED') {
-    f = selectRow('in-color', 'Color', Object.entries(LED_TYPES).map(([k, t]) => [k, `${t.label} · Vf ${t.vf} V`]), p.color);
-    f += fieldRow('in-ifmax', 'Max forward current (A)', engIn(p.ifMax, 3));
-    f += `<p class="small muted" style="margin:0">First lead is the anode (long leg). Shockley diode model fitted to Vf at 20 mA.</p>`;
+    f += selectRow('in-color', 'Color', Object.entries(LED_TYPES).map(([k, t]) => [k, `${t.label} · Vf ${t.vf} V`]), p.color);
+    f += fieldRow('in-ifmax', 'Max current (A)', engIn(p.ifMax, 3));
+    f += `<p class="muted">First lead is the anode (long leg).</p>`;
   } else if (p.type === 'VDC') {
     f += fieldRow('in-value', 'Voltage (V)', engIn(p.value));
     if ('iLimit' in p) f += fieldRow('in-ilimit', 'Current limit (A)', engIn(p.iLimit, 3));
-    if (p.rint > 0) f += `<p class="small muted" style="margin:0">Internal resistance ${fmtEng(p.rint, 'Ω')}, so the terminal voltage sags under load.</p>`;
-    f += `<p class="small muted" style="margin:0">Red lead is +, black is −.</p>`;
+    f += `<p class="muted">${p.rint > 0 ? `Internal resistance ${fmtEng(p.rint, 'Ω')}, so it sags under load. ` : ''}First lead is +.</p>`;
   } else if (p.type === 'VAC') {
     f += fieldRow('in-value', 'Amplitude (V rms)', engIn(p.value));
     f += fieldRow('in-phase', 'Phase (°)', p.phase || 0);
-    f += `<p class="small muted" style="margin:0">Peak = ${fmtEng(p.value * Math.SQRT2, 'V')}.${p.rint ? ' 50 Ω output impedance, like a real generator.' : ''} Frequency is set in the ribbon.</p>`;
+    f += `<p class="muted">Peak ${fmtEng(p.value * Math.SQRT2, 'V')}.${p.rint ? ' 50 Ω output.' : ''} Frequency is set above.</p>`;
   } else if (p.type === 'POT') {
-    f += fieldRow('in-value', 'Track resistance (Ω)', engIn(p.value));
-    f += `<label for="in-pos">Wiper position <span class="mono">${Math.round((p.pos ?? 0.5) * 100)}%</span><input type="range" id="in-pos" min="0" max="100" value="${Math.round((p.pos ?? 0.5) * 100)}"></label>`;
+    f += fieldRow('in-value', 'Track (Ω)', engIn(p.value));
+    f += `<label for="in-pos">Wiper <span class="mono">${Math.round((p.pos ?? 0.5) * 100)}%</span><input type="range" id="in-pos" min="0" max="100" value="${Math.round((p.pos ?? 0.5) * 100)}"></label>`;
   } else if (p.type === 'SW') {
-    f += `<p class="small" style="margin:0">${p.closed ? 'Closed' : 'Open'}${p.momentary ? ' (momentary push button)' : ''}.</p><button class="btn sm" id="in-toggle">${p.momentary ? (p.closed ? 'Release' : 'Press') : 'Flip'}</button>`;
+    f += `<label>State<button class="btn" id="in-toggle">${p.closed ? 'Closed' : 'Open'} · ${p.momentary ? (p.closed ? 'release' : 'press') : 'flip'}</button></label>`;
   }
-  if (p.pins) {
-    f += `<div class="pinout" style="grid-column:1/-1">${c.pins.map((n, k) => `<span><b>${esc(n)}</b> ${esc(holeName(p.pins[k]))}</span>`).join('')}</div>`;
-  }
-  const r = result && result.ok && result.parts[p.id];
-  const where = p.pins ? `${holeName(p.pins[0])} → ${holeName(p.pins[p.pins.length - 1])}` : `${holeName(p.a)} → ${holeName(p.b)}`;
-  el.innerHTML = `<div class="eyebrow">Inspector · ${esc(where)}</div><h2>${esc(p.name)} <span class="muted" style="font-weight:500">${esc(c.mpn.startsWith('Model') || ['R', 'C', 'L'].includes(p.type) ? c.name : c.mpn)}</span>${symSvg(symbolKey(c))}</h2>
-    <p class="small muted" style="margin:2px 0 0">${esc(c.name)} · ${esc(c.pkg)} · ${esc(c.spec)}</p>
-    <div class="form" style="margin-top:10px">${f}</div>
-    ${r ? `<div class="rd-vals" style="margin-top:10px;grid-template-columns:repeat(${readingCells(p, r).length}, minmax(0,1fr))">${readingCells(p, r).map(([k, v]) => `<div><small>${k}</small>${v}</div>`).join('')}</div>` : ''}
-    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm danger" id="in-del">Delete</button>${p.pins && c.footprint === '3inline' ? '<button class="btn sm" id="in-rot">Turn around</button>' : !p.pins ? '<button class="btn sm" id="in-rot">Swap leads</button>' : ''}<button class="btn sm" id="in-done">Done</button></div>`;
+  if (c.footprint) f += `<p class="pinout">${c.pins.map((n, k) => `<span><b>${esc(n)}</b>${p.pins ? ' ' + esc(holeName(p.pins[k])) : ''}</span>`).join('')}</p>`;
+  const title = isDraft ? `New ${TYPE_NOUN[p.type]}` : `${p.name} · ${c.mpn.startsWith('Model') || ['R', 'C', 'L', 'LED'].includes(p.type) ? c.name : c.mpn}`;
+  const sub = `${c.pkg} · ${c.spec}`;
+  const place = c.footprint === 'dip8' ? 'Click a column on the board.'
+    : c.footprint ? 'Click the hole for its left pin.'
+    : state.pending ? 'Now click the second hole.' : 'Click two holes on the board.';
+  el.innerHTML = `<div class="insp-title">${symSvg(symbolKey(c))}<span><b>${esc(title)}</b><small>${esc(sub)}</small></span></div>
+    <div class="form">${f}</div>
+    ${actions(isDraft ? hint(`<b>Then place it:</b> ${place.toLowerCase()}`) + '<button class="btn sm" id="in-del">Cancel</button>'
+      : `<button class="btn sm danger" id="in-del">Delete</button>${p.pins && c.footprint === '3inline' ? '<button class="btn sm" id="in-rot">Turn around</button>' : !p.pins ? '<button class="btn sm" id="in-rot">Swap leads</button>' : ''}<button class="btn sm" id="in-done">Done</button>`)}`;
 }
 
 function renderBode() {
@@ -1223,7 +1263,7 @@ function renderBode() {
 function renderNetlist() { $('netlist').textContent = spiceNetlist(state.parts, state.mode, state.freq); }
 function renderBoardView() {
   recompute();
-  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderResults(); renderSummary(); renderBode(); renderNetlist();
+  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderResults(); renderSummary(); renderBode(); renderNetlist(); revealSelectedReading();
   $('mode-dc').setAttribute('aria-pressed', state.mode === 'DC');
   $('mode-ac').setAttribute('aria-pressed', state.mode === 'AC');
   $('freqwrap').hidden = state.mode !== 'AC';
@@ -1252,10 +1292,11 @@ $('board').addEventListener('click', e => {
   closeMenu();
   const partEl = e.target.closest('[data-part]');
   if (state.tool === 'select') {
+    state.draft = null;
     const p = partEl && state.parts.find(x => x.id === partEl.dataset.part);
     if (p && p.type === 'SW') p.closed = !p.closed;
     state.selected = p ? p.id : null;
-    renderBoardView(); return;
+    renderPalette(); renderBoardView(); return;
   }
   const h = nearestHole(e); if (!h) return;
   state.sample = '';
@@ -1269,30 +1310,36 @@ $('board').addEventListener('click', e => {
     const holes = footprintHoles(c.footprint, c.footprint === 'dip8' ? 'f' + parseHole(h).c : h);
     if (!holes) { flashStatus(`The ${c.mpn} does not fit there. ${c.footprint === 'dip8' ? 'It needs four free columns across the center channel.' : 'It needs three columns in the a–j area.'}`); return; }
     if (holes.some(occupied)) flashStatus('Some of those holes already hold a lead. The part was still placed.');
-    const p = makePart(state.tool, holes); state.parts.push(p); state.selected = p.id;
+    const p = makePart(state.tool, holes, null, draftProps()); state.parts.push(p);
     renderBoardView(); return;
   }
-  if (!state.pending) { state.pending = h; renderOverlay(); renderStatus(); return; }
+  if (!state.pending) { state.pending = h; renderOverlay(); renderStatus(); renderInspector(); return; }
   if (h === state.pending) { state.pending = null; renderOverlay(); renderStatus(); return; }
   if (occupied(h)) flashStatus('That hole already holds a lead. The part was still placed; real holes take one lead each.');
-  const p = makePart(state.tool, state.pending, h);
-  state.parts.push(p); state.pending = null; state.selected = p.id;
+  const p = makePart(state.tool, state.pending, h, draftProps());
+  state.parts.push(p); state.pending = null;
   renderBoardView();
 });
 let flashT = null;
 function flashStatus(msg) { clearTimeout(flashT); setTimeout(() => { $('status').innerHTML = esc(msg); }, 0); flashT = setTimeout(renderStatus, 3500); }
-function setTool(t) { state.tool = t; state.pending = null; if (t !== 'select') state.selected = null; renderPalette(); renderBoardView(); }
+function setTool(t) {
+  state.tool = t; state.pending = null;
+  if (t !== 'select') state.selected = null;
+  const c = CATALOG_BY_ID[t];
+  // each part type remembers the values last set for it, so repeated placements keep them
+  if (c) { let d = state.drafts[c.type]; if (!d || d.model !== t) d = state.drafts[c.type] = makePart(t, null, null); state.draft = d; }
+  else state.draft = null;
+  renderPalette(); renderBoardView();
+}
 function closeMenu() { if (state.menu || state.query) { state.menu = null; state.query = ''; $('libsearch').value = ''; renderPalette(); renderLibrary(); } }
 $('palette').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) { closeMenu(); setTool(b.dataset.tool); } });
-$('libcats').addEventListener('click', e => {
-  const b = e.target.closest('[data-cat]'); if (!b) return;
-  state.query = ''; $('libsearch').value = '';
-  state.menu = state.menu === b.dataset.cat ? null : b.dataset.cat;
-  const rb = b.getBoundingClientRect(), rr = $('ribbon').getBoundingClientRect();
-  $('libpop').style.setProperty('--pop-left', Math.max(0, Math.min(rb.left - rr.left, rr.width - 520)) + 'px');
-  renderPalette(); renderLibrary();
+$('ptypes').addEventListener('click', e => {
+  const b = e.target.closest('[data-ptype]'); if (!b) return;
+  closeMenu();
+  const t = b.dataset.ptype, d = state.drafts[t];
+  setTool(d ? d.model : firstOfType(t).id);
 });
-$('libsearch').addEventListener('input', e => { state.query = e.target.value; state.menu = null; $('libpop').style.setProperty('--pop-left', '0px'); renderPalette(); renderLibrary(); });
+$('libsearch').addEventListener('input', e => { state.query = e.target.value; state.menu = null; const rr = $('ribbon').getBoundingClientRect(), rb = e.target.getBoundingClientRect(); $('libpop').style.setProperty('--pop-left', Math.max(0, Math.min(rb.right - rr.left - 520, rr.width - 520)) + 'px'); renderPalette(); renderLibrary(); });
 $('libsearch').addEventListener('keydown', e => {
   if (e.key === 'Enter') { const first = libItemsFor()[0]; if (first) { closeMenu(); setTool(first.id); } }
   if (e.key === 'Escape') { closeMenu(); e.target.blur(); }
@@ -1316,13 +1363,15 @@ document.addEventListener('keydown', e => {
 function deleteSelected() { state.parts = state.parts.filter(p => p.id !== state.selected); state.selected = null; state.sample = ''; renderBoardView(); }
 
 $('inspector').addEventListener('change', e => {
-  const p = state.parts.find(x => x.id === state.selected); if (!p) return;
+  const p = inspTarget(); if (!p) return;
+  const isDraft = p === state.draft;
   const id = e.target.id, v = e.target.value;
   const num = parseEng(v);
   if (id === 'in-model') {
     const c = CATALOG_BY_ID[v], keep = ['R', 'C', 'L'].includes(p.type) ? { value: p.value } : p.type === 'VDC' ? { value: p.value } : {};
     for (const k of ['tol', 'pRating', 'vRating', 'esr', 'polarized', 'dielectric', 'dcr', 'iRating', 'rint', 'iLimit', 'ron', 'momentary', 'closed']) delete p[k];
     Object.assign(p, JSON.parse(JSON.stringify(c.defaults || {})), keep, { model: c.id });
+    if (isDraft) { state.tool = c.id; renderPalette(); }
   }
   else if (id === 'in-value') { if (num > 0 || (p.type === 'VDC' && isFinite(num))) p.value = num; else flashStatus('Enter a number such as 4.7k, 100n or 2R2.'); }
   else if (id === 'in-tol') p.tol = +v;
@@ -1331,38 +1380,43 @@ $('inspector').addEventListener('change', e => {
   else if (id === 'in-dcr') p.dcr = num >= 0 ? num : 0;
   else if (id === 'in-irating') { if (num > 0) p.iRating = num; }
   else if (id === 'in-ilimit') { if (num > 0) p.iLimit = num; }
-  else if (id === 'in-color') { p.color = v; p.model = 'LED-' + v; }
+  else if (id === 'in-color') { p.color = v; p.model = 'LED-' + v; if (isDraft) state.tool = p.model; }
   else if (id === 'in-ifmax') { if (num > 0) p.ifMax = num; }
   else if (id === 'in-phase') p.phase = isFinite(num) ? num : 0;
   else if (id === 'in-pos') return;
-  state.sample = '';
+  if (!isDraft) state.sample = '';
   renderBoardView();
 });
 $('inspector').addEventListener('input', e => {
   if (e.target.id !== 'in-pos') return;
-  const p = state.parts.find(x => x.id === state.selected); if (!p) return;
+  const p = inspTarget(); if (!p) return;
   p.pos = +e.target.value / 100;
+  e.target.previousElementSibling.textContent = e.target.value + '%';
+  if (p === state.draft) return;
   recompute(); renderParts(); renderVolt(); renderResults(); renderSummary(); renderNetlist(); save();
   e.target.previousElementSibling.textContent = e.target.value + '%';
 });
 $('inspector').addEventListener('click', e => {
-  const p = state.parts.find(x => x.id === state.selected); if (!p) return;
+  const p = inspTarget(); if (!p) return;
   const id = e.target.id;
-  if (id === 'in-del') deleteSelected();
+  if (p === state.draft && (id === 'in-del' || id === 'in-done')) setTool('select');
+  else if (id === 'in-del') deleteSelected();
   else if (id === 'in-done') { state.selected = null; renderBoardView(); }
   else if (id === 'in-snap') { p.value = snap(p.value, p.type === 'R' ? state.series : 'E12'); renderBoardView(); }
   else if (id === 'in-toggle') { p.closed = !p.closed; renderBoardView(); }
   else if (id === 'in-rot') { if (p.pins) p.pins = p.pins.slice().reverse(); else [p.a, p.b] = [p.b, p.a]; renderBoardView(); }
   else if (e.target.dataset.wc) { p.color = e.target.dataset.wc; renderBoardView(); }
 });
-$('results').addEventListener('click', e => { const tr = e.target.closest('[data-part]'); if (tr) { state.tool = 'select'; state.selected = tr.dataset.part; renderPalette(); renderBoardView(); } });
+$('results').addEventListener('click', e => { const tr = e.target.closest('[data-part]'); if (tr) { state.tool = 'select'; state.draft = null; state.pending = null; state.selected = tr.dataset.part; renderPalette(); renderBoardView(); } });
+// the readings frame sticks below the ribbon, whose height changes with the inspector row
+try { new ResizeObserver(() => document.documentElement.style.setProperty('--ribbon-h', $('ribbon').offsetHeight + 'px')).observe($('ribbon')); } catch (e) {}
 $('results').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.rd')) { e.preventDefault(); e.target.click(); } });
 $('bode').addEventListener('change', e => { if (e.target.id === 'probe') { state.probe = e.target.value; renderBoardView(); } });
 $('mode-dc').addEventListener('click', () => { state.mode = 'DC'; renderBoardView(); });
 $('mode-ac').addEventListener('click', () => { state.mode = 'AC'; renderBoardView(); });
 $('freq').addEventListener('change', e => { const f = parseEng(e.target.value); if (f > 0) state.freq = f; e.target.value = fmtEng(state.freq, '').replace(' ', ''); renderBoardView(); });
 $('showv').addEventListener('change', e => { state.showV = e.target.checked; renderVolt(); save(); });
-$('sample').innerHTML = '<option value="">Samples…</option>' + Object.entries(SAMPLES).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('');
+$('sample').innerHTML = '<option value="">Load a sample circuit…</option>' + Object.entries(SAMPLES).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('');
 $('sample').addEventListener('change', e => { if (!e.target.value) return; loadSample(e.target.value); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTool('select'); });
 let clearArmed = false, clearT = null;
 $('btn-clear').addEventListener('click', e => {
