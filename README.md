@@ -18,6 +18,8 @@ The circuit is solved with modified nodal analysis and Newton–Raphson (with so
 - Wiring checks: shorted parts, dangling leads, shorted pins, unused op-amp units, shorted or parallel sources.
 - LTspice-compatible SPICE netlist export, with .model and .subckt lines for every semiconductor and IC.
 
+**Look.** Dark, warm Art Deco styling (ebony, brass and ivory, sunburst backdrop, stepped corners) with glass panels and soft glow.
+
 **Calculators.** Ohm's law and power, resistor part finder, voltage divider designer, LED series resistor, series/parallel, RC/RL time constant, reactance and impedance, first-order filters, capacitor codes. Results snap to the chosen E-series.
 
 ## Standards

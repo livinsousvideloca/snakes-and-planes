@@ -6,55 +6,50 @@
 <title>Breadboard Bench</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poiret+One&family=Josefin+Sans:wght@400;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: lab-bench workspace. Header with global part settings, three views (breadboard, calculators, reference). */
 :root {
-  --bg: #e9edec;
-  --panel: #fbfcfc;
-  --panel-2: #f1f4f3;
-  --ink: #1a2225;
-  --muted: #59686c;
-  --line: #cfd8d7;
-  --accent: #a8521c;        /* copper */
-  --accent-soft: #f3e2d6;
-  --signal: #1d63a6;        /* probe blue */
-  --ok: #2c7a4b;
-  --warn: #a8700f;
-  --bad: #bf3329;
-  --ok-soft: #dcefe3;
-  --warn-soft: #f6ead1;
-  --bad-soft: #f7dcd9;
-  --board: #ecebe4;
-  --board-edge: #d6d4cb;
-  --board-groove: #dddbd2;
-  --board-ink: #62676b;
-  --hole: #3a3f43;
-  --rail-red: #d0413b;
-  --rail-blue: #2f68c2;
-  --grid: #dfe5e4;
-  --f-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  /* dark, warm Art Deco palette: ebony, brass and ivory, with a soft amber glow */
+  --bg: #0e0a07;
+  --bg-2: #18110b;
+  --panel: rgba(30, 22, 15, 0.78);
+  --panel-solid: #1c140d;
+  --panel-2: rgba(212, 162, 76, 0.07);
+  --ink: #f3e7d1;
+  --muted: #b39f82;
+  --line: rgba(212, 162, 76, 0.22);
+  --accent: #d9a84e;        /* brass gold */
+  --accent-2: #f0cf8a;      /* pale gold highlight */
+  --accent-deep: #9c6b25;
+  --accent-soft: rgba(217, 168, 78, 0.16);
+  --on-accent: #1a1209;
+  --signal: #6cc6b5;        /* verdigris probe */
+  --glow: 0 0 0 1px rgba(217, 168, 78, 0.35), 0 0 22px rgba(217, 168, 78, 0.18);
+  --ok: #9ccf7f;
+  --warn: #efbb52;
+  --bad: #f2775f;
+  --ok-soft: rgba(156, 207, 127, 0.13);
+  --warn-soft: rgba(239, 187, 82, 0.14);
+  --bad-soft: rgba(242, 119, 95, 0.15);
+  --board: #e8dbc0;         /* ivory bakelite */
+  --board-edge: #b88d4f;
+  --board-groove: #d7c6a3;
+  --board-ink: #6d573a;
+  --hole: #3a2b1c;
+  --board-volt: #8c3f0c;    /* node voltages printed on the ivory board */
+  --rail-red: #b8432f;
+  --rail-blue: #2f5d9a;
+  --grid: rgba(212, 162, 76, 0.14);
+  --f-deco: "Poiret One", "Josefin Sans", "Futura", sans-serif;
+  --f-display: "Josefin Sans", "Futura", "Century Gothic", sans-serif;
   --f-body: "Barlow", "Helvetica Neue", Arial, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #111719; --panel: #182024; --panel-2: #1e282c; --ink: #e4ebeb; --muted: #94a5a8; --line: #2c393d;
-    --accent: #e0915a; --accent-soft: #3a2a1f; --signal: #74b2ec;
-    --ok: #63c58b; --warn: #e2b04f; --bad: #f07a6f; --ok-soft: #1b3326; --warn-soft: #3a2f17; --bad-soft: #3d1f1c;
-    --board: #d3d0c5; --board-edge: #b9b6ab; --board-groove: #c4c1b6; --board-ink: #4f5458; --hole: #2c3033;
-    --rail-red: #c8413b; --rail-blue: #2f63b8; --grid: #26322f;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #111719; --panel: #182024; --panel-2: #1e282c; --ink: #e4ebeb; --muted: #94a5a8; --line: #2c393d;
-  --accent: #e0915a; --accent-soft: #3a2a1f; --signal: #74b2ec;
-  --ok: #63c58b; --warn: #e2b04f; --bad: #f07a6f; --ok-soft: #1b3326; --warn-soft: #3a2f17; --bad-soft: #3d1f1c;
-  --board: #d3d0c5; --board-edge: #b9b6ab; --board-groove: #c4c1b6; --board-ink: #4f5458; --hole: #2c3033;
-  --rail-red: #c8413b; --rail-blue: #2f63b8; --grid: #26322f;
   color-scheme: dark;
 }
+/* the palette is dark by design; these keep the contract that both schemes resolve to it */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+:root[data-theme="dark"] { color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { background: var(--bg); color: var(--ink); }
 body { font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
@@ -84,11 +79,11 @@ textarea { font-family: var(--f-mono); font-size: 13px; width: 100%; resize: ver
 .tab[aria-selected="true"] { background: var(--panel); border-color: var(--line); color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.btn.primary { background: linear-gradient(180deg, var(--accent-2), var(--accent)); border-color: var(--accent); color: var(--on-accent); }
 .btn.danger { color: var(--bad); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { border: none; background: var(--panel); padding: 6px 12px; cursor: pointer; font-family: var(--f-mono); font-size: 13px; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.seg button[aria-pressed="true"] { background: linear-gradient(180deg, var(--accent-2), var(--accent)); color: var(--on-accent); }
 
 /* breadboard view: top ribbon, board left, readings frame right */
 .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 8px; margin-bottom: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
@@ -97,7 +92,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .ribbon-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .ribbon-sep { width: 1px; align-self: stretch; background: var(--line); }
 .ribbon-freq { display: flex; align-items: center; gap: 4px; }
-.ribbon-freq input { width: 64px; padding: 4px 6px; }
+.ribbon-freq input { width: 50px; padding: 4px 6px; }
 .tool { display: flex; align-items: center; gap: 4px; padding: 4px 7px 4px 4px; border: 1px solid transparent; border-radius: 6px; background: none; cursor: pointer; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .tool:hover { background: var(--panel-2); color: var(--ink); }
 .tool svg { width: 30px; height: 16px; stroke: var(--ink); fill: none; stroke-width: 1.7; flex: none; }
@@ -113,11 +108,11 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .libbtn svg { width: 9px; height: 6px; stroke: var(--muted); fill: none; stroke-width: 1.6; }
 .libbtn:hover { border-color: var(--muted); }
 .libbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.libbtn[aria-expanded="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
-.libbtn[aria-expanded="true"] svg { stroke: var(--panel); }
+.libbtn[aria-expanded="true"] { background: linear-gradient(180deg, var(--accent-2), var(--accent)); color: var(--on-accent); border-color: var(--accent); }
+.libbtn[aria-expanded="true"] svg { stroke: var(--on-accent); }
 #sample { width: 120px; }
-#libsearch { width: 120px; padding: 5px 8px; }
-.placing-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; padding: 2px 4px 2px 6px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 999px; white-space: nowrap; }
+#libsearch { width: 104px; padding: 5px 8px; }
+.placing-chip { font-family: var(--f-body); margin-right: 6px; vertical-align: middle; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; padding: 2px 4px 2px 6px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 999px; white-space: nowrap; }
 .placing-chip svg { width: 26px; height: 14px; stroke: var(--ink); fill: none; stroke-width: 1.7; }
 .placing-chip button { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--muted); padding: 0 4px; }
 .libpop { position: absolute; top: calc(100% + 4px); left: var(--pop-left, 0px); width: min(520px, calc(100vw - 32px)); max-height: min(420px, 60vh); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 4px; z-index: 20; }
@@ -218,6 +213,95 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
   .calcgrid, .refgrid { grid-template-columns: minmax(0, 1fr); }
   h1 { font-size: 26px; }
 }
+
+/* ===== Art Deco + Web3 layer: sunburst backdrop, glass panels, brass hairlines, glow ===== */
+html { background: var(--bg); }
+body {
+  background:
+    radial-gradient(1200px 600px at 50% -200px, rgba(217, 168, 78, 0.16), transparent 70%),
+    radial-gradient(800px 500px at 100% 100%, rgba(156, 74, 38, 0.14), transparent 70%),
+    repeating-conic-gradient(from 0deg at 50% -120px, rgba(217, 168, 78, 0.045) 0deg 3deg, transparent 3deg 9deg),
+    var(--bg);
+  background-attachment: fixed;
+}
+h1 { font-family: var(--f-deco); font-weight: 400; font-size: 38px; letter-spacing: 0.06em; background: linear-gradient(180deg, var(--accent-2), var(--accent) 60%, var(--accent-deep)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2, h3 { font-family: var(--f-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; font-size: 15px; color: var(--accent-2); }
+.top { border-bottom: 3px double var(--accent); padding-bottom: 16px; position: relative; }
+.top::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; transform: translateX(-50%) rotate(45deg); background: var(--bg); border: 1px solid var(--accent); box-shadow: inset 0 0 0 3px var(--bg), inset 0 0 0 4px var(--accent); }
+.brand p { font-family: var(--f-display); letter-spacing: 0.04em; }
+.brand-mark { width: 46px; height: 46px; filter: drop-shadow(0 0 10px rgba(217, 168, 78, 0.35)); }
+.tabs { justify-content: center; gap: 6px; margin: 22px 0 18px; }
+.tab { font-family: var(--f-display); font-size: 14px; text-transform: uppercase; letter-spacing: 0.18em; border-radius: 0; padding: 8px 18px; border: 1px solid transparent; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-2); box-shadow: inset 0 0 0 3px var(--bg), inset 0 0 0 4px rgba(217, 168, 78, 0.5), 0 0 18px rgba(217, 168, 78, 0.15); }
+.panel, .ribbon, .boardscroll, .libpop {
+  background: linear-gradient(var(--panel), var(--panel)) padding-box,
+              linear-gradient(135deg, var(--accent-2), rgba(217, 168, 78, 0.12) 30%, rgba(217, 168, 78, 0.12) 70%, var(--accent)) border-box;
+  border: 1px solid transparent; border-radius: 4px;
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(240, 207, 138, 0.08);
+}
+.libpop { background: linear-gradient(var(--panel-solid), var(--panel-solid)) padding-box, linear-gradient(135deg, var(--accent-2), rgba(217, 168, 78, 0.2) 40%, var(--accent)) border-box; }
+/* stepped brass corners */
+.panel { position: relative; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 16px; height: 16px; pointer-events: none; opacity: 0.85; }
+.panel::before { top: 5px; left: 5px; border-top: 1px solid var(--accent); border-left: 1px solid var(--accent); box-shadow: -3px -3px 0 -2px var(--accent); }
+.panel::after { bottom: 5px; right: 5px; border-bottom: 1px solid var(--accent); border-right: 1px solid var(--accent); box-shadow: 3px 3px 0 -2px var(--accent); }
+.panel h2 { display: flex; align-items: center; gap: 10px; }
+.panel h2::after { content: ""; flex: 1; height: 5px; min-width: 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+#inspector h2::after { display: none; }
+.eyebrow { color: var(--accent); letter-spacing: 0.16em; font-family: var(--f-display); }
+.ribbon { top: calc(env(safe-area-inset-top, 0px) + 6px); }
+.ribbon-sep { width: 7px; background: none; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+select, input[type="text"], input[type="search"], textarea { background: rgba(10, 7, 4, 0.55); border: 1px solid var(--line); border-radius: 3px; color: var(--ink); }
+select:focus, input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
+option { background: var(--panel-solid); color: var(--ink); }
+.btn, .libbtn { background: rgba(10, 7, 4, 0.4); border: 1px solid var(--line); border-radius: 3px; font-family: var(--f-display); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink); transition: border-color .15s, box-shadow .15s; }
+.btn:hover, .libbtn:hover { border-color: var(--accent); box-shadow: var(--glow); }
+.libbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); }
+.libbtn { font-size: 11.5px; letter-spacing: 0.08em; padding: 5px 8px; }
+.ribbon .btn.sm { font-size: 11.5px; letter-spacing: 0.08em; }
+.ribbon { gap: 6px 8px; }
+#libcats { gap: 4px; }
+.ribbon .tool { padding: 4px 5px; }
+.ribbon .tool svg { width: 24px; }
+#sample { width: 108px; }
+.btn.danger { color: var(--bad); }
+.seg { border-color: var(--accent); border-radius: 3px; }
+.seg button { background: transparent; color: var(--muted); }
+.tool { color: var(--muted); border-radius: 3px; }
+.tool svg, .libitem svg, .placing-chip svg, #inspector h2 svg { stroke: var(--accent-2); }
+.tool:hover { background: var(--accent-soft); color: var(--ink); }
+.tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow); }
+.placing-chip { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); box-shadow: 0 0 14px rgba(217, 168, 78, 0.25); border-radius: 3px; }
+.libitem:hover, .libitem[aria-pressed="true"] { background: var(--accent-soft); }
+.li-name b { color: var(--accent-2); }
+.boardscroll { padding: 12px; }
+#board { filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5)); }
+.statusbar b { color: var(--accent-2); }
+.rd { border-radius: 2px; border-bottom: 1px solid var(--line); }
+.rd:hover { background: var(--panel-2); }
+.rd.sel { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+.rd-name { font-family: var(--f-display); letter-spacing: 0.04em; color: var(--accent-2); }
+.rd-vals { color: var(--ink); }
+.rd-vals small, th { color: var(--muted); font-family: var(--f-display); letter-spacing: 0.12em; }
+.chip { border-radius: 2px; font-family: var(--f-display); letter-spacing: 0.04em; border: 1px solid currentColor; border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.chip::before { box-shadow: 0 0 8px currentColor; }
+.chip.off { background: rgba(255, 255, 255, 0.03); }
+pre.netlist { background: rgba(5, 3, 2, 0.6); border: 1px solid var(--line); border-radius: 3px; color: #e9d9b8; }
+td, th { border-bottom-color: var(--line); }
+dl.res { border-top: 1px solid var(--line); }
+dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78, 0.35); }
+.fields input:disabled { background: var(--accent-soft); color: var(--accent-2); }
+.errbox { border-radius: 2px; }
+.swatch { border-color: rgba(255, 255, 255, 0.25); }
+.symbol-preview { background: var(--panel-2); border-radius: 3px; }
+.symbol-preview svg { stroke: var(--accent-2); }
+:focus-visible { outline-color: var(--accent-2); }
+::selection { background: rgba(217, 168, 78, 0.35); }
+.readings-frame::-webkit-scrollbar, .libpop::-webkit-scrollbar { width: 8px; }
+.readings-frame::-webkit-scrollbar-thumb, .libpop::-webkit-scrollbar-thumb { background: rgba(217, 168, 78, 0.3); border-radius: 4px; }
+@media (max-width: 640px) { h1 { font-size: 30px; } .tabs { justify-content: flex-start; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 <style>[hidden]{display:none!important} body{margin:0} :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
@@ -226,12 +310,13 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 38 38" aria-hidden="true">
-        <rect x="1" y="1" width="36" height="36" rx="6" fill="var(--board)" stroke="var(--board-edge)"/>
-        <line x1="6" y1="7" x2="32" y2="7" stroke="var(--rail-red)" stroke-width="1.6"/>
-        <line x1="6" y1="31" x2="32" y2="31" stroke="var(--rail-blue)" stroke-width="1.6"/>
-        <g fill="var(--hole)"><rect x="8" y="12" width="3" height="3"/><rect x="17.5" y="12" width="3" height="3"/><rect x="27" y="12" width="3" height="3"/><rect x="8" y="23" width="3" height="3"/><rect x="17.5" y="23" width="3" height="3"/><rect x="27" y="23" width="3" height="3"/></g>
-        <path d="M9.5 13.5 C 12 4, 26 4, 28.5 13.5" stroke="var(--accent)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <svg class="brand-mark" viewBox="0 0 46 46" aria-hidden="true">
+        <defs><linearGradient id="bm-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0cf8a"/><stop offset="1" stop-color="#9c6b25"/></linearGradient></defs>
+        <path d="M23 2 L44 23 L23 44 L2 23 Z" fill="#14100b" stroke="url(#bm-gold)" stroke-width="1.4"/>
+        <path d="M23 7 L39 23 L23 39 L7 23 Z" fill="none" stroke="url(#bm-gold)" stroke-width="0.6"/>
+        <g stroke="url(#bm-gold)" stroke-width="1" fill="none"><path d="M23 29 L23 12 M23 29 L16 14 M23 29 L30 14 M23 29 L11 19 M23 29 L35 19"/></g>
+        <path d="M13 29 H33" stroke="#f0cf8a" stroke-width="1.6"/>
+        <g fill="#f0cf8a"><rect x="15" y="31.5" width="2.4" height="2.4"/><rect x="21.8" y="31.5" width="2.4" height="2.4"/><rect x="28.6" y="31.5" width="2.4" height="2.4"/></g>
       </svg>
       <div>
         <h1>Breadboard Bench</h1>
@@ -270,8 +355,7 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
       <div class="ribbon-group" id="palette" aria-label="Tools"></div>
       <div class="ribbon-sep" aria-hidden="true"></div>
       <div class="ribbon-group" id="libcats" aria-label="Parts library"></div>
-      <input type="search" id="libsearch" placeholder="Search parts" title="Search parts (press /)" aria-label="Search parts" autocomplete="off">
-      <div id="placing"></div>
+      <input type="search" id="libsearch" placeholder="Search…" title="Search parts (press /)" aria-label="Search parts" autocomplete="off">
       <div class="ribbon-sep" aria-hidden="true"></div>
       <div class="ribbon-group">
         <div class="seg" role="group" aria-label="Analysis">
@@ -283,9 +367,9 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
       </div>
       <span class="grow"></span>
       <div class="ribbon-group">
-        <label class="small muted"><input type="checkbox" id="showv" checked> Voltages</label>
+        <label class="small muted" title="Show node voltages on the board"><input type="checkbox" id="showv" checked> Volts</label>
         <select id="sample" aria-label="Sample circuits"></select>
-        <button class="btn sm danger" id="btn-clear">Clear board</button>
+        <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
       </div>
       <div id="libpop" class="libpop" hidden></div>
     </div>
@@ -581,7 +665,7 @@ const ALL_HOLES = [];
 for (const r of Object.keys(ROW_Y)) for (let c = 1; c <= COLS; c++) ALL_HOLES.push(r + c);
 
 function drawBase() {
-  let s = `<rect x="2" y="2" width="608" height="330" rx="9" fill="var(--board)" stroke="var(--board-edge)" stroke-width="1.5"/>`;
+  let s = `<rect x="2" y="2" width="608" height="330" rx="4" fill="var(--board)" stroke="var(--board-edge)" stroke-width="1.5"/><rect x="5" y="5" width="602" height="324" rx="2" fill="none" stroke="var(--board-edge)" stroke-width="0.5" stroke-opacity="0.7"/>`;
   s += `<rect x="8" y="160" width="596" height="14" rx="3" fill="var(--board-groove)"/>`;
   const W = colX(COLS) + 10, x1 = X0 - 10;
   s += `<line x1="${x1}" y1="9" x2="${W}" y2="9" stroke="var(--rail-red)" stroke-width="1.6"/>`;
@@ -752,7 +836,7 @@ function renderVolt() {
     const root = topo.find(b);
     if (!topo.used.has(root)) continue;
     const t = vText(root); if (t === null) continue;
-    const fill = root === topo.gnd ? 'var(--board-ink)' : 'var(--accent)';
+    const fill = root === topo.gnd ? 'var(--board-ink)' : 'var(--board-volt)';
     if (RAILS.includes(b)) s += `<text x="${colX(COLS) + 14}" y="${ROW_Y[b] + 3}" font-size="7.5" ${MONO} fill="${fill}">${t}</text>`;
     else strips.push({ c: +b.slice(1), top: b[0] === 'U', t, fill });
   }
@@ -822,6 +906,7 @@ function renderStatus() {
     else el.innerHTML = state.pending ? `Now click where the second lead of the ${esc(c.name.toLowerCase())} goes. Esc cancels.`
       : `Click the hole for the first lead of the ${esc(c.name.toLowerCase())}${c.type === 'LED' || c.type === 'D' ? ' (anode)' : c.type === 'VDC' || c.type === 'VAC' ? ' (+ terminal)' : c.polarized || (c.defaults && c.defaults.polarized) ? ' (+ lead)' : ''}.`;
   } else el.innerHTML = 'Hover a hole to see which holes are connected and the voltage there. Click a part to edit it; click a switch to flip it.';
+  if (c) el.innerHTML = `<span class="placing-chip">${symSvg(symbolKey(c))}${esc(toolLabel(state.tool))}<button id="placing-x" aria-label="Stop placing">×</button></span> ` + el.innerHTML;
 }
 
 /* ---------- ribbon: quick tools, library menus, search ---------- */
@@ -833,7 +918,6 @@ function renderPalette() {
     const active = cur && cur.cat === cat;
     return `<button class="libbtn" data-cat="${cat}" aria-expanded="${state.menu === cat}" aria-pressed="${!!active}">${cat}<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1 L5 5 L9 1"/></svg></button>`;
   }).join('');
-  $('placing').innerHTML = cur ? `<span class="placing-chip">${symSvg(symbolKey(cur))}${esc(toolLabel(state.tool))}<button id="placing-x" aria-label="Stop placing">×</button></span>` : '';
 }
 function libItemsFor() {
   const q = state.query.trim().toLowerCase();
@@ -1214,7 +1298,7 @@ $('libsearch').addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeMenu(); e.target.blur(); }
 });
 $('libpop').addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b) { closeMenu(); setTool(b.dataset.pick); } });
-$('placing').addEventListener('click', e => { if (e.target.id === 'placing-x') setTool('select'); });
+$('status').addEventListener('click', e => { if (e.target.id === 'placing-x') setTool('select'); });
 // composedPath, not closest: the ribbon re-renders its buttons inside the click handler
 document.addEventListener('click', e => { if (!e.composedPath().some(n => n.id === 'ribbon')) closeMenu(); });
 document.addEventListener('keydown', e => {
@@ -1282,8 +1366,8 @@ $('sample').innerHTML = '<option value="">Samples…</option>' + Object.entries(
 $('sample').addEventListener('change', e => { if (!e.target.value) return; loadSample(e.target.value); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTool('select'); });
 let clearArmed = false, clearT = null;
 $('btn-clear').addEventListener('click', e => {
-  if (!clearArmed) { clearArmed = true; e.target.textContent = 'Click again to clear'; clearT = setTimeout(() => { clearArmed = false; e.target.textContent = 'Clear board'; }, 3000); return; }
-  clearTimeout(clearT); clearArmed = false; e.target.textContent = 'Clear board';
+  if (!clearArmed) { clearArmed = true; e.target.textContent = 'Sure?'; clearT = setTimeout(() => { clearArmed = false; e.target.textContent = 'Clear'; }, 3000); return; }
+  clearTimeout(clearT); clearArmed = false; e.target.textContent = 'Clear';
   state.parts = []; state.selected = null; state.sample = ''; renderBoardView();
 });
 $('btn-copy').addEventListener('click', e => {
