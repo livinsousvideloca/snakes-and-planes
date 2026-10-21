@@ -162,3 +162,25 @@ test('random breadboard circuits never throw and almost always converge', () => 
   }
   assert.ok(solved / total >= 0.97, `solved ${solved} of ${total}`);
 });
+
+test('every sample circuit solves and matches its write-up', () => {
+  const ref = {
+    basics: ['U18', 2.85, 2.9], divider: ['U5', 5.99, 6.01], twosource: ['U5', 8.1, 8.14], bridge: ['U12', 6.0, 6.2],
+    zener: ['U6', 5.0, 5.2], transistor: ['U12', 0, 0.2], mosfet: ['U12', 0, 0.1], ce: ['U12', 5.3, 5.8],
+    noninv: ['L10', 5.04, 5.06], opamp: ['L10', -0.01, 0.01], regulator: ['U7', 4.98, 5.02], lm317: ['U6', 5.02, 5.06],
+    highpass: null, rlc: null
+  };
+  for (const [key, s] of Object.entries(E.SAMPLE_CIRCUITS)) {
+    assert.ok(s.label && s.about && s.expect && s.try, key);
+    const parts = E.sampleParts(key);
+    const dc = E.analyze(parts);
+    assert.ok(dc.ok, key + ': ' + dc.errors.join());
+    if (ref[key]) inRange(nv(dc, ref[key][0]), ref[key][1], ref[key][2], key);
+    if (s.mode === 'AC') assert.ok(E.analyze(parts, { mode: 'AC', freq: s.freq }).ok, key + ' AC');
+  }
+  const ac = (key, base) => { const s = E.SAMPLE_CIRCUITS[key], r = E.analyze(E.sampleParts(key), { mode: 'AC', freq: s.freq }); return E.cabs(r.nodeV.get(r.topo.find(base))); };
+  inRange(ac('highpass', 'L8'), 0.70, 0.72, 'high-pass at fc');
+  inRange(ac('rlc', 'L13'), 0.99, 1.0, 'RLC at resonance');
+  inRange(ac('ce', 'U12') / 0.005, 180, 260, 'CE gain');
+  inRange(ac('opamp', 'L10'), 4.7, 4.8, 'inverting amp');
+});

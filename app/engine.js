@@ -548,14 +548,32 @@ function newtonDC(topo, ctx, lam, gext, x0, maxIt) {
     // SPICE-style tolerances: 1 µV absolute plus 0.1% relative
     let conv = alpha === 1;
     for (let i = 0; i < n && conv; i++) if (Math.abs(xn[i] - xprev[i]) > 1e-6 + 1e-3 * Math.max(Math.abs(xn[i]), Math.abs(xprev[i]))) conv = false;
-    if (conv) return { x, ok: true, it: it + 1 };
+    // and KCL must actually balance: a current-limited supply has a ~1000 S slope, so a
+    // millivolt left on its node is amps of error in its reported current
+    if (conv && Math.sqrt(residual(x)) < 1e-7) return { x, ok: true, it: it + 1 };
   }
   return { x, ok: false };
 }
 
-function solveDC(topo, ctx) {
+/* Starting guess for boards with current-limited supplies: solve once with those supplies
+   ideal. From 0 V a limited supply starts out saturated (flat), and Newton can stall there. */
+function warmStart(topo, ctx) {
+  const lim = topo.els.filter(p => p.type === 'VDC' && p.iLimit > 0);
+  if (!lim.length) return null;
+  const topo2 = Object.assign({}, topo, { els: topo.els.map(p => lim.includes(p) ? Object.assign({}, p, { iLimit: 0 }) : p) });
+  const ctx2 = buildContext(topo2, 'DC');
+  const r = solveDC(topo2, ctx2, true);
+  if (!r.ok) return null;
+  const x0 = new Float64Array(ctx.N);
+  for (let i = 0; i < ctx.n; i++) x0[i] = r.x[i];
+  ctx.branches.forEach((p, k) => { const k2 = ctx2.branches.findIndex(q => q.id === p.id); if (k2 >= 0) x0[ctx.n + k] = r.x[ctx2.n + k2]; });
+  return x0;
+}
+function solveDC(topo, ctx, noWarm) {
   let r = newtonDC(topo, ctx, 1, 0, null, 150);
   if (r.ok) return Object.assign(r, { method: 'Newton–Raphson' });
+  const x0 = noWarm ? null : warmStart(topo, ctx);
+  if (x0) { r = newtonDC(topo, ctx, 1, 0, x0, 150); if (r.ok) return Object.assign(r, { method: 'Newton–Raphson (warm start)' }); }
   // source stepping
   let x = null, ok = true;
   for (let k = 1; k <= 20; k++) { const s = newtonDC(topo, ctx, k / 20, 0, x, 150); if (!s.ok) { ok = false; break; } x = s.x; }
@@ -819,9 +837,165 @@ function spiceNetlist(parts, mode, freq) {
   return L.join('\n');
 }
 
+/* ---------- sample circuits ----------
+   Each step is [part, hole, hole, props]. Chips take their anchor hole and null.
+   about: what the circuit shows; expect: what the readings should say; try: what to change next. */
+const W = { red: '#d23b3b', blue: '#2b63c4', yellow: '#e3a514', green: '#2a9455', black: '#2b2f33' };
+const SAMPLE_CIRCUITS = {
+  basics: {
+    label: 'LED, divider and RC filter', topic: 'DC basics', mode: 'DC', probe: 'L9',
+    about: 'Three small circuits on one 9 V supply. Top left: an LED with a 470 Ω current-limiting resistor. Top right: a 10 kΩ / 4.7 kΩ voltage divider. Bottom: a 1 kΩ / 100 nF RC low-pass filter driven by a 1 V AC source.',
+    expect: 'The LED draws about (9 − 1.9) / 470 ≈ 15 mA. The divider gives 9 × 4.7 / 14.7 ≈ 2.88 V. The filter corner is 1 / (2π·1 k·100 n) ≈ 1.59 kHz.',
+    try: 'Switch to AC and read the −3 dB point on the Bode plot. Change the LED resistor until the LED is near 10 mA.',
+    steps: [['V-IDEAL', 'TP1', 'TN1', { value: 9 }], ['GND', 'TN2'],
+      ['wire', 'TP3', 'a3', { color: W.red }], ['R-CF', 'b3', 'b7', { value: 470 }], ['LED-red', 'c7', 'c9'], ['wire', 'a9', 'TN9', { color: W.black }],
+      ['wire', 'TP13', 'a13', { color: W.red }], ['R-CF', 'b13', 'b18', { value: 10000 }], ['R-CF', 'c18', 'c23', { value: 4700 }], ['wire', 'a23', 'TN23', { color: W.black }],
+      ['wire', 'TN29', 'BN29', { color: W.black }],
+      ['VAC-IDEAL', 'h3', 'BN3', { value: 1 }], ['R-CF', 'g3', 'g9', { value: 1000 }], ['C-X7R', 'j9', 'BN9', { value: 100e-9 }]]
+  },
+  divider: {
+    label: 'Loaded voltage divider', topic: 'DC basics', mode: 'DC', probe: 'U5',
+    about: 'Two 10 kΩ resistors split 12 V in half, but only while nothing draws current from the midpoint. The slide switch connects a 10 kΩ load across the bottom resistor.',
+    expect: 'Switch open: 6.00 V at the midpoint (column 5). Switch closed: the load is in parallel with R2, so the bottom leg is 5 kΩ and the midpoint falls to 12 × 5 / 15 = 4.00 V.',
+    try: 'Click the switch to flip it. Then make R1 and R2 1 kΩ: the loaded voltage now barely moves, which is why dividers should be about 10× stiffer than their load (or buffered).',
+    steps: [['V-IDEAL', 'TP1', 'TN1', { value: 12 }], ['GND', 'TN2'],
+      ['R-CF', 'TP5', 'a5', { value: 10000 }], ['R-CF', 'b5', 'b10', { value: 10000 }], ['wire', 'a10', 'TN10', { color: W.black }],
+      ['SW-SLIDE', 'd5', 'd14', { closed: false }], ['R-CF', 'b14', 'b19', { value: 10000 }], ['wire', 'a19', 'TN19', { color: W.black }]]
+  },
+  twosource: {
+    label: 'Two sources: superposition and KCL', topic: 'DC basics', mode: 'DC', probe: 'U5',
+    about: 'A 12 V and a 5 V source feed one node through 1 kΩ and 2.2 kΩ, with 3.3 kΩ to ground. It is the classic node-voltage / superposition exercise. The 5 V source sits on the bottom rails, and a black jumper ties both grounds together.',
+    expect: 'Node voltage (column 5): (12/1k + 5/2.2k) / (1/1k + 1/2.2k + 1/3.3k) ≈ 8.12 V. The 5 V source is absorbing power here (negative power out), because the node sits above 5 V.',
+    try: 'Superposition: set the 5 V source to 0 and note the node voltage, then restore it and set the 12 V source to 0. The two results add up to 8.12 V.',
+    steps: [['V-IDEAL', 'TP1', 'TN1', { value: 12 }], ['GND', 'TN2'], ['V-IDEAL', 'BP1', 'BN1', { value: 5 }], ['wire', 'TN29', 'BN29', { color: W.black }],
+      ['R-MF', 'TP5', 'a5', { value: 1000 }], ['wire', 'e5', 'f5', { color: W.yellow }], ['R-MF', 'j5', 'BP5', { value: 2200 }],
+      ['R-MF', 'c5', 'c10', { value: 3300 }], ['wire', 'a10', 'TN10', { color: W.black }]]
+  },
+  bridge: {
+    label: 'Wheatstone bridge', topic: 'DC basics', mode: 'DC', probe: 'U6',
+    about: 'Two dividers side by side: 1 kΩ / 1 kΩ on the left (column 6), and 1 kΩ over a trimmer wired as a variable resistor on the right (column 12). The 100 Ω resistor between them stands in for a meter. The trimmer\'s wiper is jumpered to one end so it acts as a variable resistor, which is why the wiring check notes those two pins are tied together.',
+    expect: 'With the trimmer at 30% (3 kΩ) the bridge is unbalanced: column 6 sits near 5.9 V and column 12 near 6.1 V, and about 1.9 mA flows through the meter. At 10% (1 kΩ) both sides read 5.00 V and the meter current is zero.',
+    try: 'Select the trimmer (RV1) and drag the wiper slider to 10%. Watch the meter current go to zero. That null is how bridges measure an unknown resistance.',
+    steps: [['V-IDEAL', 'TP1', 'TN1', { value: 10 }], ['GND', 'TN2'],
+      ['R-MF', 'TP6', 'a6', { value: 1000 }], ['R-MF', 'b6', 'b2', { value: 1000 }], ['wire', 'a2', 'TN3', { color: W.black }],
+      ['R-MF', 'TP12', 'a12', { value: 1000 }], ['POT-3386', 'c12', null, { pos: 0.3, value: 1e4 }], ['wire', 'd13', 'd14', { color: W.yellow }], ['wire', 'a14', 'TN14', { color: W.black }],
+      ['R-MF', 'e6', 'e12', { value: 100 }]]
+  },
+  highpass: {
+    label: 'RC high-pass filter', topic: 'AC', mode: 'AC', freq: 1000, probe: 'L8',
+    about: 'A 100 nF film capacitor in series with a 1.6 kΩ resistor to ground. The output is taken across the resistor, so low frequencies are blocked and high frequencies pass.',
+    expect: 'Corner frequency 1 / (2π·1.6 k·100 n) ≈ 995 Hz. At 1 kHz the output is about 0.71 V rms (−3 dB) with a +45° phase lead.',
+    try: 'Read the Bode plot: −20 dB per decade below the corner. Set the frequency to 100 Hz and 10 kHz and compare the output with 1/√(1 + (fc/f)²).',
+    steps: [['GND', 'BN2'], ['VAC-IDEAL', 'h3', 'BN3', { value: 1 }], ['C-FILM', 'g3', 'g8', { value: 100e-9 }], ['R-MF', 'h8', 'BN8', { value: 1600 }]]
+  },
+  rlc: {
+    label: 'Series RLC resonance', topic: 'AC', mode: 'AC', freq: 5033, probe: 'L13',
+    about: 'A 10 mH inductor, 100 nF capacitor and 100 Ω resistor in series across a 1 V source. At resonance the inductor and capacitor reactances cancel, leaving only the resistor.',
+    expect: 'f₀ = 1 / (2π√(LC)) ≈ 5.03 kHz. There the current is 1 V / 100 Ω = 10 mA in phase with the source. The voltage across L and across C is each about 3.2 V, Q times the source (Q = √(L/C) / R ≈ 3.2).',
+    try: 'Look at the peak on the Bode plot (probe across R). Raise R to 330 Ω: the peak gets wider (lower Q) but stays at the same frequency.',
+    steps: [['GND', 'BN2'], ['VAC-IDEAL', 'h3', 'BN3', { value: 1 }], ['L-IDEAL', 'g3', 'g8', { value: 10e-3 }], ['C-FILM', 'h8', 'h13', { value: 100e-9 }], ['R-MF', 'i13', 'BN13', { value: 100 }]]
+  },
+  zener: {
+    label: 'Zener reference (1N4733A)', topic: 'Diodes', mode: 'DC', probe: 'U6',
+    about: 'A 5.1 V Zener diode, reverse-biased through 150 Ω from 12 V, holds column 6 near 5.1 V. A 10 kΩ trimmer across it taps off a lower adjustable voltage.',
+    expect: 'About (12 − 5.1) / 150 ≈ 46 mA flows, near the 49 mA test current. The Zener dissipates about 0.23 W of its 1 W rating, and the trimmer wiper sits at half of 5.1 V.',
+    try: 'Change the supply between 9 V and 15 V. The Zener voltage moves only about 0.3 V while the 150 Ω resistor takes up the rest. That is line regulation.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 1 }], ['GND', 'TN2'],
+      ['R-MO-1', 'TP4', 'a4', { value: 150 }], ['wire', 'b4', 'b6', { color: W.yellow }],
+      ['D-1N4733A', 'TN7', 'c6'], ['POT-3386', 'c10'], ['wire', 'd6', 'a10', { color: W.yellow }], ['wire', 'a12', 'TN12', { color: W.black }]]
+  },
+  transistor: {
+    label: 'Transistor switch (2N3904 + LED)', topic: 'Transistors', mode: 'DC', probe: 'U12',
+    about: 'The slide switch feeds 9 V through 10 kΩ into the base of a 2N3904. The transistor sinks the LED current from its collector to ground.',
+    expect: 'Base current ≈ (9 − 0.75) / 10 k ≈ 0.83 mA, far more than the ~13 mA LED current needs at β ≈ 200, so the transistor saturates (Vce under 0.2 V, forced β around 15). That is what a switch should do.',
+    try: 'Click the switch to turn the LED off. Raise the base resistor to 1 MΩ: the transistor leaves saturation and the LED dims, because now β limits the current.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 9, iLimit: 1 }], ['GND', 'TN2'],
+      ['Q-2N3904', 'c10'], ['wire', 'a10', 'TN10', { color: W.black }],
+      ['SW-SLIDE', 'TP7', 'a7'], ['R-CF', 'b7', 'b11', { value: 10000 }],
+      ['R-CF', 'TP15', 'a15', { value: 470 }], ['LED-blue', 'c15', 'd12']]
+  },
+  mosfet: {
+    label: 'MOSFET low-side switch (2N7000)', topic: 'Transistors', mode: 'DC', probe: 'U12',
+    about: 'A 2N7000 N-channel MOSFET switches an LED to ground. The gate is driven to 5 V by the slide switch, and a 100 kΩ pull-down holds it at 0 V when the switch is open.',
+    expect: 'With the gate at 5 V the MOSFET is fully on (a few ohms), so the green LED gets about (5 − 2.1) / 220 ≈ 13 mA. Almost no gate current flows, unlike the BJT switch.',
+    try: 'Open the switch: the pull-down turns the MOSFET off. Delete the pull-down and open the switch again: the gate floats, which is why real circuits always need one.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 5, iLimit: 1 }], ['GND', 'TN2'],
+      ['M-2N7000', 'c10'], ['wire', 'a10', 'TN10', { color: W.black }],
+      ['SW-SLIDE', 'TP11', 'a11'], ['R-CF', 'b11', 'b6', { value: 100e3 }], ['wire', 'a6', 'TN6', { color: W.black }],
+      ['R-CF', 'TP14', 'a14', { value: 220 }], ['LED-green', 'c14', 'd12']]
+  },
+  ce: {
+    label: 'Common-emitter amplifier (2N3904)', topic: 'Transistors', mode: 'AC', freq: 1000, probe: 'U12',
+    about: 'A voltage-divider-biased 2N3904 amplifier. 47 kΩ / 10 kΩ set the base near 2.1 V, the 1 kΩ emitter resistor sets about 1.4 mA, and 4.7 kΩ is the collector load. A 100 µF capacitor bypasses the emitter resistor at AC, and a 10 µF capacitor couples in the 5 mV signal.',
+    expect: 'DC: Vb ≈ 2.05 V, Ve ≈ 1.4 V, Vc ≈ 5.6 V, in the active region. AC: gain ≈ −gm·Rc = −(Ic / 26 mV)·4.7 k ≈ −250 in theory; the readings show about −220 (≈ 1.1 V rms at the collector, phase near 180°) because the bias resistors and the generator\'s 50 Ω load the input.',
+    try: 'Switch to DC to check the bias point. Then delete the bypass capacitor C1: the gain drops to about Rc / Re ≈ 4.7 (the readings show about 4.5), which is lower but much more predictable.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5 }], ['GND', 'TN2'],
+      ['Q-2N3904', 'c10'], ['R-CF', 'TP11', 'a11', { value: 47e3 }], ['R-CF', 'e11', 'e5', { value: 10e3 }], ['wire', 'a5', 'TN5', { color: W.black }],
+      ['R-CF', 'TP12', 'a12', { value: 4700 }], ['R-CF', 'd10', 'd7', { value: 1000 }], ['C-ELEC', 'b10', 'b7', { value: 100e-6 }], ['wire', 'a7', 'TN7', { color: W.black }],
+      ['VAC-GEN', 'a17', 'TN17', { value: 0.005 }], ['C-ELEC', 'd11', 'd17', { value: 10e-6 }]]
+  },
+  noninv: {
+    label: 'Non-inverting amplifier (LM358, single 12 V)', topic: 'Op-amps', mode: 'DC', probe: 'L10',
+    about: 'An LM358 runs from a single 12 V supply and amplifies a 0.5 V DC input (the ideal source at column 17, standing in for a sensor, jumpered to the + input) with a gain of 1 + 9.1 k / 1 k = 10.1.',
+    expect: 'Output (column 10, bottom) ≈ 5.05 V. The LM358 output can only reach about 1.5 V below its positive supply, so it clips near 10.5 V.',
+    try: 'Raise the input source to 1.2 V: the output stops at about 10.5 V and the op-amp reading shows it clipped. Swap the part to an MCP6002 (rail-to-rail, but 6 V maximum) and see the supply warning.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5 }], ['GND', 'TN2'],
+      ['U-LM358', 'f10'], ['wire', 'a10', 'TP10', { color: W.red }], ['wire', 'j13', 'BN13', { color: W.black }], ['wire', 'TN30', 'BN30', { color: W.black }],
+      ['wire', 'h12', 'h17', { color: W.yellow }], ['V-IDEAL', 'j17', 'BN17', { value: 0.5 }], ['R-MF', 'j11', 'BN11', { value: 1000 }], ['R-MF', 'i10', 'i11', { value: 9100 }]]
+  },
+  opamp: {
+    label: 'Inverting amplifier (TL072, ±12 V)', topic: 'Op-amps', mode: 'AC', freq: 1000, probe: 'L10',
+    about: 'A TL072 on a split ±12 V supply: two bench supplies stacked, with their junction as ground. The 10 kΩ feedback resistor and 1 kΩ input resistor set the gain to −10. The function generator has a 50 Ω output.',
+    expect: 'A 0.5 V rms input gives about 4.76 V rms out, at 180° (inverted). It is slightly under 5 V because the 50 Ω generator and the 1 kΩ input resistor form a divider. The TL072\'s 3 MHz GBW puts the −3 dB point near 280 kHz.',
+    try: 'Read the corner on the Bode plot, then change the feedback resistor to 100 kΩ. The gain goes up 10×, and the bandwidth drops about 10×.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5 }], ['GND', 'TN2'], ['V-BENCH', 'TN4', 'BN4', { value: 12, iLimit: 0.5 }],
+      ['U-TL072', 'f10'], ['wire', 'a10', 'TP10', { color: W.red }], ['wire', 'j13', 'BN13', { color: W.blue }], ['wire', 'h12', 'TN12', { color: W.black }],
+      ['VAC-GEN', 'i7', 'TN7', { value: 0.5 }], ['R-MF', 'g7', 'g11', { value: 1000 }], ['R-MF', 'i10', 'i11', { value: 10000 }]]
+  },
+  regulator: {
+    label: '5 V regulator from a 9 V battery (L7805)', topic: 'Power', mode: 'DC', probe: 'U7',
+    about: 'An L7805 turns a 9 V battery into a steady 5 V. The 330 nF and 100 nF capacitors are the datasheet\'s input and output capacitors. The load is a green LED with 330 Ω plus a 10 k / 10 k divider.',
+    expect: 'Output 5.00 V. About 7 mA flows, so the regulator dissipates (9 − 5) × 7 mA ≈ 30 mW, and the divider reads 2.5 V. The battery\'s 1.7 Ω internal resistance barely matters at this current.',
+    try: 'Lower the battery voltage to 6.5 V: the 7805 needs about 2 V of headroom, so it drops out and the output follows the input. Swap in an LM1117-3.3 (low-dropout) for comparison.',
+    steps: [['V-9V', 'TP1', 'TN1'], ['GND', 'TN2'],
+      ['U-L7805', 'c5'], ['wire', 'TP5', 'a5', { color: W.red }], ['wire', 'a6', 'TN6', { color: W.black }],
+      ['C-X7R', 'd5', 'TN4', { value: 330e-9 }], ['C-X7R', 'd7', 'TN8', { value: 100e-9 }],
+      ['R-CF', 'b7', 'b12', { value: 330 }], ['LED-green', 'c12', 'c14'], ['wire', 'a14', 'TN14', { color: W.black }],
+      ['R-CF', 'a7', 'a18', { value: 10000 }], ['R-CF', 'b18', 'TN18', { value: 10000 }]]
+  },
+  lm317: {
+    label: 'Adjustable supply (LM317)', topic: 'Power', mode: 'DC', probe: 'U6',
+    about: 'An LM317 holds 1.25 V between OUT and ADJ. The 240 Ω / 720 Ω pair scales that up: Vout = 1.25 × (1 + 720 / 240) ≈ 5.0 V. The load is a yellow LED through 330 Ω.',
+    expect: 'Output (column 6) ≈ 5.04 V; the extra 0.04 V comes from the ~50 µA ADJ pin current flowing through 720 Ω. The divider and LED together draw over the LM317\'s 10 mA minimum load.',
+    try: 'Change the 720 Ω resistor to 1.5 kΩ for about 9 V. Then take the input down toward the output to find the dropout point.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 1 }], ['GND', 'TN2'],
+      ['U-LM317', 'c5'], ['wire', 'TP7', 'a7', { color: W.red }],
+      ['R-MF', 'b6', 'b5', { value: 240 }], ['R-MF', 'e5', 'TN5', { value: 720 }],
+      ['R-CF', 'e6', 'e10', { value: 330 }], ['LED-yellow', 'd10', 'TN10']]
+  }
+};
+const SAMPLE_NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', BJT: 'Q', MOS: 'M', OPAMP: 'U', REG: 'U' };
+function sampleParts(key) {
+  const s = SAMPLE_CIRCUITS[key]; if (!s) return [];
+  const parts = [], count = {};
+  s.steps.forEach(([tool, a, b, props], k) => {
+    const id = 's' + (k + 1);
+    if (tool === 'wire') { parts.push(Object.assign({ id, type: 'wire', a, b, name: 'Jumper', color: W.blue }, props)); return; }
+    if (tool === 'GND') { parts.push({ id, type: 'GND', a, b: null, name: 'GND' }); return; }
+    const c = CATALOG_BY_ID[tool];
+    const p = Object.assign({ id, type: c.type, model: c.id }, JSON.parse(JSON.stringify(c.defaults || {})), props || {});
+    if (c.footprint) p.pins = footprintHoles(c.footprint, a); else { p.a = a; p.b = b; }
+    const pre = SAMPLE_NAME_PREFIX[c.type];
+    count[pre] = (count[pre] || 0) + 1;
+    p.name = pre + count[pre];
+    parts.push(p);
+  });
+  return parts;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     E_BASE, SERIES_TOL, POWER_RATINGS, LED_TYPES, CATALOG, CATALOG_BY_ID, catalogOf, snap, isInSeries, parseEng, fmtEng, rkm, colorBands, smdCode,
-    capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, sweep, spiceNetlist
+    capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, sweep, spiceNetlist, SAMPLE_CIRCUITS, sampleParts
   };
 }

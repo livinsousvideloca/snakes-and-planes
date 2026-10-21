@@ -20,6 +20,8 @@ The circuit is solved with modified nodal analysis and Newton–Raphson (with so
 
 **Look.** Dark, warm Art Deco styling (ebony, brass and ivory, sunburst backdrop, stepped corners) with glass panels and soft glow.
 
+**Sample circuits.** Fourteen worked examples from a typical AC/DC course, grouped by topic: LED and divider basics, a loaded divider, superposition with two sources, a Wheatstone bridge, RC high-pass and series RLC resonance, a Zener reference, BJT and MOSFET switches, a common-emitter amplifier, non-inverting and inverting op-amp amplifiers, and 7805 and LM317 regulators. Each one explains what the circuit shows, what the readings should say, and what to change next. A test checks every sample against the numbers in its write-up.
+
 **Calculators.** Ohm's law and power, resistor part finder, voltage divider designer, LED series resistor, series/parallel, RC/RL time constant, reactance and impedance, first-order filters, capacitor codes. Results snap to the chosen E-series.
 
 ## Standards

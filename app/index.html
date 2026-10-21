@@ -123,6 +123,11 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .insp-hint { align-self: center; font-size: 12.5px; color: var(--muted); max-width: 520px; }
 .insp-actions .insp-hint { max-width: 230px; text-align: right; }
 .insp-hint b { color: var(--accent-2); font-weight: 500; }
+.about p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }
+.about h3 { font-size: 12px; margin: 10px 0 4px; }
+.about-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.about-head h2 { margin-bottom: 8px; }
+.about-head h2::after { display: none; }
 .insp-actions { display: flex; gap: 6px; margin-left: auto; align-self: center; flex-wrap: wrap; }
 .tool .lbl { display: none; } /* icons only; the title gives the name and hotkey */
 .libbtn { display: flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 13px; color: var(--ink); }
@@ -420,6 +425,7 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
         </div>
       </div>
       <aside class="readings-frame" aria-label="Readings">
+        <div class="panel about" id="about" hidden></div>
         <div class="panel">
           <div id="summary"></div>
           <div id="results"></div>
@@ -631,63 +637,26 @@ function makePart(tool, a, b, props = {}) {
   return p;
 }
 
-/* ---------- sample circuits ---------- */
-const SAMPLES = {
-  basics: { label: 'LED, divider and RC filter', mode: 'DC', probe: 'L9', build: add => {
-    add('V-IDEAL', 'TP1', 'TN1', { value: 9 }); add('GND', 'TN2');
-    add('wire', 'TP3', 'a3', { color: WIRE_COLORS[0] }); add('R-CF', 'b3', 'b7', { value: 470 }); add('LED-red', 'c7', 'c9'); add('wire', 'a9', 'TN9', { color: WIRE_COLORS[6] });
-    add('wire', 'TP13', 'a13', { color: WIRE_COLORS[0] }); add('R-CF', 'b13', 'b18', { value: 10000 }); add('R-CF', 'c18', 'c23', { value: 4700 }); add('wire', 'a23', 'TN23', { color: WIRE_COLORS[6] });
-    add('wire', 'TN29', 'BN29', { color: WIRE_COLORS[6] });
-    add('VAC-IDEAL', 'h3', 'BN3', { value: 1 }); add('R-CF', 'g3', 'g9', { value: 1000 }); add('C-X7R', 'j9', 'BN9', { value: 100e-9 });
-  } },
-  opamp: { label: 'Inverting amplifier (TL072, ±12 V)', mode: 'AC', probe: 'L10', build: add => {
-    add('V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5 }); add('GND', 'TN2'); add('V-BENCH', 'TN4', 'BN4', { value: 12, iLimit: 0.5 });
-    add('U-TL072', 'f10'); add('wire', 'a10', 'TP10', { color: WIRE_COLORS[0] }); add('wire', 'j13', 'BN13', { color: WIRE_COLORS[1] }); add('wire', 'h12', 'TN12', { color: WIRE_COLORS[6] });
-    add('VAC-GEN', 'i7', 'TN7', { value: 0.5 }); add('R-MF', 'g7', 'g11', { value: 1000 }); add('R-MF', 'i10', 'i11', { value: 10000 });
-  } },
-  regulator: { label: '5 V regulator from a 9 V battery (L7805)', mode: 'DC', probe: 'U7', build: add => {
-    add('V-9V', 'TP1', 'TN1'); add('GND', 'TN2');
-    add('U-L7805', 'c5'); add('wire', 'TP5', 'a5', { color: WIRE_COLORS[0] }); add('wire', 'a6', 'TN6', { color: WIRE_COLORS[6] });
-    add('C-X7R', 'd5', 'TN4', { value: 330e-9 }); add('C-X7R', 'd7', 'TN8', { value: 100e-9 });
-    add('R-CF', 'b7', 'b12', { value: 330 }); add('LED-green', 'c12', 'c14'); add('wire', 'a14', 'TN14', { color: WIRE_COLORS[6] });
-    add('R-CF', 'a7', 'a18', { value: 10000 }); add('R-CF', 'b18', 'TN18', { value: 10000 });
-  } },
-  transistor: { label: 'Transistor switch (2N3904 + LED)', mode: 'DC', probe: 'U12', build: add => {
-    add('V-BENCH', 'TP1', 'TN1', { value: 9, iLimit: 1 }); add('GND', 'TN2');
-    add('Q-2N3904', 'c10'); add('wire', 'a10', 'TN10', { color: WIRE_COLORS[6] });
-    add('SW-SLIDE', 'TP7', 'a7'); add('R-CF', 'b7', 'b11', { value: 10000 });
-    add('R-CF', 'TP15', 'a15', { value: 470 }); add('LED-blue', 'c15', 'd12');
-  } },
-  zener: { label: 'Zener reference (1N4733A)', mode: 'DC', probe: 'U6', build: add => {
-    add('V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 1 }); add('GND', 'TN2');
-    add('R-MO-1', 'TP4', 'a4', { value: 150 }); add('wire', 'b4', 'b6', { color: WIRE_COLORS[2] });
-    add('D-1N4733A', 'TN7', 'c6'); add('POT-3386', 'c10'); add('wire', 'd6', 'a10', { color: WIRE_COLORS[2] }); add('wire', 'a12', 'TN12', { color: WIRE_COLORS[6] });
-  } }
-};
+/* ---------- sample circuits (defined in engine.js with their write-ups) ---------- */
 function loadSample(key) {
-  const s = SAMPLES[key] || SAMPLES.basics;
-  state.parts = [];
-  s.build((tool, a, b, props) => {
-    const c = CATALOG_BY_ID[tool];
-    const pins = c && c.footprint ? footprintHoles(c.footprint, a) : null;
-    const p = pins ? makePart(tool, pins, null, b || {}) : makePart(tool, a, b, props || {});
-    state.parts.push(p);
-  });
-  state.mode = s.mode; state.probe = s.probe; state.selected = null; state.sample = key;
+  const s = SAMPLE_CIRCUITS[key] || SAMPLE_CIRCUITS.basics;
+  state.parts = sampleParts(key);
+  uid = state.parts.length + 1;
+  state.mode = s.mode; state.freq = s.freq || state.freq; state.probe = s.probe; state.selected = null; state.sample = key; state.about = key;
 }
 
 /* ---------- state ---------- */
 const saved = store.get('bb-bench-v2') || store.get('bb-bench-v1');
 const state = {
   tab: 'board', series: 'E24', sym: 'IEC', tool: 'select', pending: null, hover: null, selected: null,
-  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: '', draft: null, drafts: {}
+  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: '', draft: null, drafts: {}, about: null
 };
 if (saved && Array.isArray(saved.parts)) {
-  Object.assign(state, { series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
+  Object.assign(state, { about: saved.about || null, series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
   state.parts = saved.parts.filter(p => p.type === 'wire' || p.type === 'GND' || ELEMENT_TYPES.includes(p.type));
   uid = Math.max(1, ...state.parts.map(p => +String(p.id).slice(1) + 1 || 1));
 } else loadSample('basics');
-function save() { store.set('bb-bench-v2', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV, sample: state.sample }); }
+function save() { store.set('bb-bench-v2', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV, sample: state.sample, about: state.about }); }
 
 /* ---------- board geometry ---------- */
 const P = 18, X0 = 40;
@@ -1260,10 +1229,20 @@ function renderBode() {
   } else svg = '<p class="muted small">Add an AC source to plot the response.</p>';
   el.innerHTML = `<label class="small muted" for="probe" style="display:flex;gap:8px;align-items:center;margin-bottom:6px">Probe node <select id="probe">${opts}</select></label>` + svg;
 }
+function renderAbout() {
+  const el = $('about'), s = state.about && SAMPLE_CIRCUITS[state.about];
+  el.hidden = !s;
+  if (!s) return;
+  el.innerHTML = `<div class="about-head"><div><div class="eyebrow">Sample · ${esc(s.topic)}</div><h2>${esc(s.label)}</h2></div><button class="btn sm" id="about-x" aria-label="Hide the explanation">Hide</button></div>
+    <p>${esc(s.about)}</p>
+    <h3>What to expect</h3><p>${esc(s.expect)}</p>
+    <h3>Try this</h3><p>${esc(s.try)}</p>
+    ${state.sample !== state.about ? '<p class="note">You have changed the board since loading this sample, so the readings may differ from the numbers above.</p>' : ''}`;
+}
 function renderNetlist() { $('netlist').textContent = spiceNetlist(state.parts, state.mode, state.freq); }
 function renderBoardView() {
   recompute();
-  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderResults(); renderSummary(); renderBode(); renderNetlist(); revealSelectedReading();
+  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); renderBode(); renderNetlist(); revealSelectedReading();
   $('mode-dc').setAttribute('aria-pressed', state.mode === 'DC');
   $('mode-ac').setAttribute('aria-pressed', state.mode === 'AC');
   $('freqwrap').hidden = state.mode !== 'AC';
@@ -1416,13 +1395,17 @@ $('mode-dc').addEventListener('click', () => { state.mode = 'DC'; renderBoardVie
 $('mode-ac').addEventListener('click', () => { state.mode = 'AC'; renderBoardView(); });
 $('freq').addEventListener('change', e => { const f = parseEng(e.target.value); if (f > 0) state.freq = f; e.target.value = fmtEng(state.freq, '').replace(' ', ''); renderBoardView(); });
 $('showv').addEventListener('change', e => { state.showV = e.target.checked; renderVolt(); save(); });
-$('sample').innerHTML = '<option value="">Load a sample circuit…</option>' + Object.entries(SAMPLES).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('');
+{
+  const topics = [...new Set(Object.values(SAMPLE_CIRCUITS).map(s => s.topic))];
+  $('sample').innerHTML = '<option value="">Load a sample circuit…</option>' + topics.map(t => `<optgroup label="${esc(t)}">${Object.entries(SAMPLE_CIRCUITS).filter(([, s]) => s.topic === t).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('')}</optgroup>`).join('');
+}
+$('about').addEventListener('click', e => { if (e.target.id === 'about-x') { state.about = null; renderAbout(); save(); } });
 $('sample').addEventListener('change', e => { if (!e.target.value) return; loadSample(e.target.value); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTool('select'); });
 let clearArmed = false, clearT = null;
 $('btn-clear').addEventListener('click', e => {
   if (!clearArmed) { clearArmed = true; e.target.textContent = 'Sure?'; clearT = setTimeout(() => { clearArmed = false; e.target.textContent = 'Clear'; }, 3000); return; }
   clearTimeout(clearT); clearArmed = false; e.target.textContent = 'Clear';
-  state.parts = []; state.selected = null; state.sample = ''; renderBoardView();
+  state.parts = []; state.selected = null; state.sample = ''; state.about = null; renderBoardView();
 });
 $('btn-copy').addEventListener('click', e => {
   const txt = $('netlist').textContent;
