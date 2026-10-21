@@ -4,6 +4,6 @@
   "private": true,
   "description": "Circuit calculators and a breadboard DC/AC solver that work in real, purchasable parts.",
   "scripts": {
-    "test": "node --test tests/engine.test.js"
+    "test": "node --test tests/engine.test.js tests/devices.test.js"
   }
 }

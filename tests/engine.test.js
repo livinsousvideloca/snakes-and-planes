@@ -44,7 +44,8 @@ test('DC divider and LED branch', () => {
   const vOut = r.nodeV.get(r.topo.find('U18'))[0];
   close(vOut, 9 * 4.7 / 14.7, 1e-6);
   const led = parts.find(p => p.type === 'LED');
-  close(r.parts[led.id].i[0], (9 - 2) / 480, 1e-6);
+  const i = r.parts[led.id].i[0];
+  assert.ok(i > 0.014 && i < 0.0155, `LED current ${i}`);
 });
 
 test('RC low-pass is 0.707 at -45 degrees at its cutoff', () => {
@@ -64,7 +65,7 @@ test('reports shorted and parallel sources', () => {
 test('reverse-biased LED stays off', () => {
   const led = part('LED', 'TN4', 'b2', { color: 'red' });
   const r = E.analyze([part('VDC', 'TP1', 'TN1', { value: 5 }), part('R', 'TP2', 'a2', { value: 330 }), led]);
-  assert.equal(r.ledOn[led.id], false);
+  assert.ok(Math.abs(r.parts[led.id].i[0]) < 1e-6);
 });
 
 test('netlist is LTspice-shaped', () => {

@@ -108,7 +108,29 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 #inspector .form label:first-child { grid-column: 1 / -1; }
 #inspector h2 { display: flex; align-items: center; gap: 8px; }
 #inspector h2 svg { width: 40px; height: 20px; stroke: var(--ink); fill: none; stroke-width: 1.6; margin-left: auto; }
-@media (max-width: 1400px) { .tool[data-tool="select"] .lbl, .tool[data-tool="wire"] .lbl, .tool[data-tool="GND"] .lbl { display: none; } }
+.tool .lbl { display: none; } /* icons only; the title gives the name and hotkey */
+.libbtn { display: flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 13px; color: var(--ink); }
+.libbtn svg { width: 9px; height: 6px; stroke: var(--muted); fill: none; stroke-width: 1.6; }
+.libbtn:hover { border-color: var(--muted); }
+.libbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.libbtn[aria-expanded="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.libbtn[aria-expanded="true"] svg { stroke: var(--panel); }
+#sample { width: 120px; }
+#libsearch { width: 120px; padding: 5px 8px; }
+.placing-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; padding: 2px 4px 2px 6px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 999px; white-space: nowrap; }
+.placing-chip svg { width: 26px; height: 14px; stroke: var(--ink); fill: none; stroke-width: 1.7; }
+.placing-chip button { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.libpop { position: absolute; top: calc(100% + 4px); left: var(--pop-left, 0px); width: min(520px, calc(100vw - 32px)); max-height: min(420px, 60vh); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 4px; z-index: 20; }
+.libpop[hidden] { display: none; }
+.libhead { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px 4px; }
+.libitem { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "sym name pkg" "sym spec spec"; gap: 0 8px; width: 100%; text-align: left; padding: 6px 8px; border: none; background: none; border-radius: 6px; cursor: pointer; color: var(--ink); align-items: center; }
+.libitem:hover, .libitem[aria-pressed="true"] { background: var(--panel-2); }
+.libitem svg { grid-area: sym; width: 32px; height: 18px; stroke: var(--ink); fill: none; stroke-width: 1.6; }
+.li-name { grid-area: name; font-size: 13.5px; }
+.li-spec { grid-area: spec; font-size: 12px; color: var(--muted); }
+.li-pkg { grid-area: pkg; font-size: 11px; font-family: var(--f-mono); color: var(--muted); }
+.pinout { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.pinout b { color: var(--ink); font-weight: 600; }
 .btn.sm { padding: 4px 10px; font-size: 13px; }
 .bench { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; align-items: start; }
 .boardcol { min-width: 0; display: grid; gap: 10px; }
@@ -191,7 +213,7 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
 }
 @media (max-width: 640px) {
   .lower { grid-template-columns: minmax(0, 1fr); }
-  .ribbon { position: static; }
+  .ribbon { position: relative; }
   .tool span.lbl { display: none; }
   .calcgrid, .refgrid { grid-template-columns: minmax(0, 1fr); }
   h1 { font-size: 26px; }
@@ -244,8 +266,12 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
 
   <!-- ================= BREADBOARD ================= -->
   <section id="view-board" role="tabpanel">
-    <div class="ribbon" role="toolbar" aria-label="Parts and analysis">
-      <div class="ribbon-group" id="palette" aria-label="Parts"></div>
+    <div class="ribbon" id="ribbon" role="toolbar" aria-label="Parts and analysis">
+      <div class="ribbon-group" id="palette" aria-label="Tools"></div>
+      <div class="ribbon-sep" aria-hidden="true"></div>
+      <div class="ribbon-group" id="libcats" aria-label="Parts library"></div>
+      <input type="search" id="libsearch" placeholder="Search parts" title="Search parts (press /)" aria-label="Search parts" autocomplete="off">
+      <div id="placing"></div>
       <div class="ribbon-sep" aria-hidden="true"></div>
       <div class="ribbon-group">
         <div class="seg" role="group" aria-label="Analysis">
@@ -258,9 +284,10 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
       <span class="grow"></span>
       <div class="ribbon-group">
         <label class="small muted"><input type="checkbox" id="showv" checked> Voltages</label>
-        <button class="btn sm" id="btn-sample">Load sample</button>
+        <select id="sample" aria-label="Sample circuits"></select>
         <button class="btn sm danger" id="btn-clear">Clear board</button>
       </div>
+      <div id="libpop" class="libpop" hidden></div>
     </div>
     <div class="bench">
       <div class="boardcol">
@@ -416,107 +443,134 @@ const store = {
 };
 
 /* ---------- schematic symbols (IEC 60617 / IEEE 315) ---------- */
-function symbol(type, style) {
+const INK = 'style="color:var(--ink)"';
+function symbol(key, style) {
   const s = style || state.sym;
-  switch (type) {
-    case 'select': return '<path d="M16 3 L16 18 L20 14 L23 20 L25 19 L22 13 L27 13 Z" fill="currentColor" stroke="none" style="color:var(--ink)"/>';
+  const diode = '<path d="M2 11 H15 M29 11 H42"/><path d="M15 4 V18 L28 11 Z" fill="currentColor" ' + INK + ' stroke-linejoin="round"/>';
+  switch (key) {
+    case 'select': return '<path d="M16 3 L16 18 L20 14 L23 20 L25 19 L22 13 L27 13 Z" fill="currentColor" stroke="none" ' + INK + '/>';
     case 'wire': return '<path d="M4 15 C 14 2, 30 2, 40 15" stroke-width="2.4"/><circle cx="4" cy="15" r="2" fill="currentColor"/><circle cx="40" cy="15" r="2" fill="currentColor"/>';
     case 'R': return s === 'IEEE'
       ? '<path d="M2 11 H10 L12 6 L16 16 L20 6 L24 16 L28 6 L32 16 L34 11 H42"/>'
       : '<path d="M2 11 H11 M33 11 H42"/><rect x="11" y="6" width="22" height="10"/>';
+    case 'POT': return (s === 'IEEE'
+      ? '<path d="M2 14 H10 L12 9 L16 19 L20 9 L24 19 L28 9 L32 19 L34 14 H42"/>'
+      : '<path d="M2 14 H11 M33 14 H42"/><rect x="11" y="9" width="22" height="10"/>') + '<path d="M22 0 V8 M19 5 L22 8 L25 5"/>';
     case 'C': return '<path d="M2 11 H19 M25 11 H42 M19 3 V19 M25 3 V19"/>';
+    case 'CE': return '<path d="M2 11 H19 M27 11 H42 M19 3 V19"/><path d="M28 3 Q24 11 28 19"/><path d="M13 4 h4 M15 2 v4" stroke-width="1.2"/>';
     case 'L': return '<path d="M2 13 H8 a3.5 3.5 0 0 1 7 0 a3.5 3.5 0 0 1 7 0 a3.5 3.5 0 0 1 7 0 a3.5 3.5 0 0 1 7 0 H42"/>';
-    case 'LED': return '<path d="M2 12 H15 M29 12 H42"/><path d="M15 5 V19 L28 12 Z" fill="currentColor" style="color:var(--ink)" stroke-linejoin="round"/><path d="M29 5 V19"/><path d="M24 4 L29 -1 M28 6 L33 1" stroke-width="1.2"/><path d="M29 -1 l-3 0 M29 -1 l0 3 M33 1 l-3 0 M33 1 l0 3" stroke-width="1.2"/>';
-    case 'VDC': return '<path d="M2 11 H17 M27 11 H42 M17 3 V19 M21 7 V15 M23 3 V19 M27 7 V15" />' + '<text x="12" y="6" font-size="7" fill="currentColor" stroke="none" style="color:var(--ink)">+</text>';
+    case 'D': return diode + '<path d="M29 4 V18"/>';
+    case 'ZD': return diode + '<path d="M26 3 L29 4 V18 L32 19"/>';
+    case 'SD': return diode + '<path d="M26 6 V4 H29 V18 H32 V16"/>';
+    case 'LED': return diode + '<path d="M29 4 V18"/><path d="M24 3 L29 -2 M28 5 L33 0" stroke-width="1.2"/><path d="M29 -2 l-3 0 M29 -2 l0 3 M33 0 l-3 0 M33 0 l0 3" stroke-width="1.2"/>';
+    case 'NPN': case 'PNP': return '<circle cx="24" cy="11" r="10"/><path d="M4 11 H19 M19 4 V18 M19 8 L29 2 M19 14 L29 20"/>' +
+      (key === 'NPN' ? '<path d="M24 17 L29 20 L26 15" fill="currentColor" ' + INK + '/>' : '<path d="M22 13 L19 14 L22 17" fill="currentColor" ' + INK + '/>');
+    case 'NMOS': return '<path d="M4 15 H14 M14 6 V16 M18 4 V8 M18 10 V13 M18 15 V19 M18 6 H28 V1 M18 17 H28 V22 M18 11.5 H28 V17"/><path d="M19 11.5 L23 9.5 V13.5 Z" fill="currentColor" ' + INK + '/>';
+    case 'OPAMP': return '<path d="M12 1 V21 L34 11 Z"/><path d="M2 6 H12 M2 16 H12 M34 11 H42"/><path d="M14 6 h3 M14 16 h3 M15.5 14.5 v3" stroke-width="1.2"/>';
+    case 'REG': return '<rect x="12" y="3" width="20" height="14"/><path d="M2 8 H12 M32 8 H42 M22 17 V22"/><text x="22" y="13" font-size="6.5" text-anchor="middle" fill="currentColor" stroke="none" ' + INK + '>REG</text>';
+    case 'SW': return '<path d="M2 14 H12 M32 14 H42 M12 14 L30 5"/><circle cx="12" cy="14" r="1.6" fill="currentColor"/><circle cx="32" cy="14" r="1.6"/>';
+    case 'PB': return '<path d="M2 16 H12 M32 16 H42 M10 11 H34 M22 11 V3 M18 3 H26"/><circle cx="12" cy="16" r="1.6"/><circle cx="32" cy="16" r="1.6"/>';
+    case 'VDC': return '<path d="M2 11 H17 M27 11 H42 M17 3 V19 M21 7 V15 M23 3 V19 M27 7 V15" /><text x="12" y="6" font-size="7" fill="currentColor" stroke="none" ' + INK + '>+</text>';
     case 'VAC': return '<path d="M2 11 H13 M31 11 H42"/><circle cx="22" cy="11" r="9"/><path d="M16 11 c2 -6 4 -6 6 0 s4 6 6 0"/>';
     case 'GND': return '<path d="M22 1 V10 M12 10 H32 M15 14 H29 M18 18 H26"/>';
   }
   return '';
 }
-
-/* ---------- part definitions ---------- */
-const PART_DEFS = {
-  select: { label: 'Select', key: 'v' },
-  wire:   { label: 'Jumper', key: 'w' },
-  R:      { label: 'Resistor', key: 'r', prefix: 'R' },
-  C:      { label: 'Capacitor', key: 'c', prefix: 'C' },
-  L:      { label: 'Inductor', key: 'l', prefix: 'L' },
-  LED:    { label: 'LED', key: 'd', prefix: 'D' },
-  VDC:    { label: 'DC supply', key: 'b', prefix: 'V' },
-  VAC:    { label: 'AC source', key: 'a', prefix: 'V' },
-  GND:    { label: 'Ground', key: 'g', prefix: 'GND' }
-};
-const WIRE_COLORS = ['#d23b3b', '#2b63c4', '#e3a514', '#2a9455', '#8a4fc2', '#e07128', '#2b2f33'];
-function defaultsFor(type) {
-  const tol = SERIES_TOL[state.series];
-  switch (type) {
-    case 'R': return { value: 1000, tol: tol > 10 ? 5 : tol, pRating: 0.25 };
-    case 'C': return { value: 100e-9, vRating: 50 };
-    case 'L': return { value: 10e-3, iRating: 0.5, dcr: 0 };
-    case 'LED': return { color: 'red', ifMax: 0.02 };
-    case 'VDC': return { value: 5 };
-    case 'VAC': return { value: 1, phase: 0 };
-    case 'wire': return { color: WIRE_COLORS[state.parts.filter(p => p.type === 'wire').length % WIRE_COLORS.length] };
-    default: return {};
+function symbolKey(c) {
+  if (!c) return 'R';
+  switch (c.type) {
+    case 'C': return c.defaults && c.defaults.polarized ? 'CE' : 'C';
+    case 'D': return c.zener ? 'ZD' : /Schottky/.test(c.name) ? 'SD' : 'D';
+    case 'BJT': return c.model.pol > 0 ? 'NPN' : 'PNP';
+    case 'MOS': return 'NMOS';
+    case 'SW': return c.defaults && c.defaults.momentary ? 'PB' : 'SW';
+    default: return c.type;
   }
 }
+const symSvg = (key, cls = '') => `<svg class="${cls}" viewBox="0 -3 44 26" aria-hidden="true">${symbol(key)}</svg>`;
+
+/* ---------- parts ---------- */
+const QUICK_TOOLS = { select: { label: 'Select', key: 'v' }, wire: { label: 'Jumper', key: 'w' }, GND: { label: 'Ground', key: 'g' } };
+const CATEGORIES = ['Passives', 'Controls', 'Sources', 'Semiconductors', 'ICs'];
+const HOTKEYS = { r: 'R-CF', c: 'C-X7R', l: 'L-AX', d: 'LED-red', b: 'V-BENCH', a: 'VAC-GEN', q: 'Q-2N3904', u: 'U-LM358' };
+const NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', BJT: 'Q', MOS: 'M', OPAMP: 'U', REG: 'U' };
+const WIRE_COLORS = ['#d23b3b', '#2b63c4', '#e3a514', '#2a9455', '#8a4fc2', '#e07128', '#2b2f33'];
+function toolLabel(t) { return QUICK_TOOLS[t] ? QUICK_TOOLS[t].label : CATALOG_BY_ID[t] ? (CATALOG_BY_ID[t].mpn.startsWith('Model') || CATALOG_BY_ID[t].type === 'R' || CATALOG_BY_ID[t].type === 'C' || CATALOG_BY_ID[t].type === 'L' ? CATALOG_BY_ID[t].name : CATALOG_BY_ID[t].mpn + ' ' + CATALOG_BY_ID[t].name.toLowerCase()) : t; }
 function nextName(type) {
-  const pre = PART_DEFS[type].prefix;
-  if (!pre) return 'Jumper';
-  if (type === 'GND') return 'GND';
-  const n = state.parts.filter(p => p.name && p.name.startsWith(pre) && /^\D+\d+$/.test(p.name) && p.name.replace(/\d+$/, '') === pre)
-    .map(p => +p.name.slice(pre.length));
+  const pre = NAME_PREFIX[type];
+  const n = state.parts.filter(p => p.name && new RegExp('^' + pre + '\\d+$').test(p.name)).map(p => +p.name.slice(pre.length));
   return pre + ((n.length ? Math.max(...n) : 0) + 1);
 }
 let uid = 1;
-function makePart(type, a, b, props = {}) {
-  const p = Object.assign({ id: 'p' + (uid++), type, a, b }, defaultsFor(type), props);
-  if (!p.name) p.name = nextName(type);
+function makePart(tool, a, b, props = {}) {
+  const base = { id: 'p' + (uid++) };
+  if (tool === 'wire') return Object.assign(base, { type: 'wire', a, b, name: 'Jumper', color: WIRE_COLORS[state.parts.filter(p => p.type === 'wire').length % WIRE_COLORS.length] }, props);
+  if (tool === 'GND') return Object.assign(base, { type: 'GND', a, b: null, name: 'GND' }, props);
+  const c = CATALOG_BY_ID[tool];
+  const p = Object.assign(base, { type: c.type, model: c.id }, JSON.parse(JSON.stringify(c.defaults || {})));
+  if (c.footprint) p.pins = a; else { p.a = a; p.b = b; }
+  Object.assign(p, props);
+  if (!p.name) p.name = nextName(c.type);
   return p;
 }
 
-/* ---------- sample circuit ---------- */
-function sampleParts() {
-  const parts = [];
-  const add = (t, a, b, props) => { const p = makePart(t, a, b, props); state.parts = parts; parts.push(p); };
-  state.parts = parts;
-  add('VDC', 'TP1', 'TN1', { value: 9 });
-  add('GND', 'TN2', null);
-  // LED branch
-  add('wire', 'TP3', 'a3', { color: WIRE_COLORS[0] });
-  add('R', 'b3', 'b7', { value: 470, tol: 5, pRating: 0.25 });
-  add('LED', 'c7', 'c9', { color: 'red' });
-  add('wire', 'a9', 'TN9', { color: WIRE_COLORS[6] });
-  // divider
-  add('wire', 'TP13', 'a13', { color: WIRE_COLORS[0] });
-  add('R', 'b13', 'b18', { value: 10000, tol: 5, pRating: 0.25 });
-  add('R', 'c18', 'c23', { value: 4700, tol: 5, pRating: 0.25 });
-  add('wire', 'a23', 'TN23', { color: WIRE_COLORS[6] });
-  // tie bottom − rail to top − rail
-  add('wire', 'TN29', 'BN29', { color: WIRE_COLORS[6] });
-  // RC low-pass driven by AC source
-  add('VAC', 'h3', 'BN3', { value: 1, phase: 0 });
-  add('R', 'g3', 'g9', { value: 1000, tol: 5, pRating: 0.25 });
-  add('C', 'j9', 'BN9', { value: 100e-9, vRating: 50 });
-  return parts;
+/* ---------- sample circuits ---------- */
+const SAMPLES = {
+  basics: { label: 'LED, divider and RC filter', mode: 'DC', probe: 'L9', build: add => {
+    add('V-IDEAL', 'TP1', 'TN1', { value: 9 }); add('GND', 'TN2');
+    add('wire', 'TP3', 'a3', { color: WIRE_COLORS[0] }); add('R-CF', 'b3', 'b7', { value: 470 }); add('LED-red', 'c7', 'c9'); add('wire', 'a9', 'TN9', { color: WIRE_COLORS[6] });
+    add('wire', 'TP13', 'a13', { color: WIRE_COLORS[0] }); add('R-CF', 'b13', 'b18', { value: 10000 }); add('R-CF', 'c18', 'c23', { value: 4700 }); add('wire', 'a23', 'TN23', { color: WIRE_COLORS[6] });
+    add('wire', 'TN29', 'BN29', { color: WIRE_COLORS[6] });
+    add('VAC-IDEAL', 'h3', 'BN3', { value: 1 }); add('R-CF', 'g3', 'g9', { value: 1000 }); add('C-X7R', 'j9', 'BN9', { value: 100e-9 });
+  } },
+  opamp: { label: 'Inverting amplifier (TL072, ±12 V)', mode: 'AC', probe: 'L10', build: add => {
+    add('V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5 }); add('GND', 'TN2'); add('V-BENCH', 'TN4', 'BN4', { value: 12, iLimit: 0.5 });
+    add('U-TL072', 'f10'); add('wire', 'a10', 'TP10', { color: WIRE_COLORS[0] }); add('wire', 'j13', 'BN13', { color: WIRE_COLORS[1] }); add('wire', 'h12', 'TN12', { color: WIRE_COLORS[6] });
+    add('VAC-GEN', 'i7', 'TN7', { value: 0.5 }); add('R-MF', 'g7', 'g11', { value: 1000 }); add('R-MF', 'i10', 'i11', { value: 10000 });
+  } },
+  regulator: { label: '5 V regulator from a 9 V battery (L7805)', mode: 'DC', probe: 'U7', build: add => {
+    add('V-9V', 'TP1', 'TN1'); add('GND', 'TN2');
+    add('U-L7805', 'c5'); add('wire', 'TP5', 'a5', { color: WIRE_COLORS[0] }); add('wire', 'a6', 'TN6', { color: WIRE_COLORS[6] });
+    add('C-X7R', 'd5', 'TN4', { value: 330e-9 }); add('C-X7R', 'd7', 'TN8', { value: 100e-9 });
+    add('R-CF', 'b7', 'b12', { value: 330 }); add('LED-green', 'c12', 'c14'); add('wire', 'a14', 'TN14', { color: WIRE_COLORS[6] });
+    add('R-CF', 'a7', 'a18', { value: 10000 }); add('R-CF', 'b18', 'TN18', { value: 10000 });
+  } },
+  transistor: { label: 'Transistor switch (2N3904 + LED)', mode: 'DC', probe: 'U12', build: add => {
+    add('V-BENCH', 'TP1', 'TN1', { value: 9, iLimit: 1 }); add('GND', 'TN2');
+    add('Q-2N3904', 'c10'); add('wire', 'a10', 'TN10', { color: WIRE_COLORS[6] });
+    add('SW-SLIDE', 'TP7', 'a7'); add('R-CF', 'b7', 'b11', { value: 10000 });
+    add('R-CF', 'TP15', 'a15', { value: 470 }); add('LED-blue', 'c15', 'd12');
+  } },
+  zener: { label: 'Zener reference (1N4733A)', mode: 'DC', probe: 'U6', build: add => {
+    add('V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 1 }); add('GND', 'TN2');
+    add('R-MO-1', 'TP4', 'a4', { value: 150 }); add('wire', 'b4', 'b6', { color: WIRE_COLORS[2] });
+    add('D-1N4733A', 'TN7', 'c6'); add('POT-3386', 'c10'); add('wire', 'd6', 'a10', { color: WIRE_COLORS[2] }); add('wire', 'a12', 'TN12', { color: WIRE_COLORS[6] });
+  } }
+};
+function loadSample(key) {
+  const s = SAMPLES[key] || SAMPLES.basics;
+  state.parts = [];
+  s.build((tool, a, b, props) => {
+    const c = CATALOG_BY_ID[tool];
+    const pins = c && c.footprint ? footprintHoles(c.footprint, a) : null;
+    const p = pins ? makePart(tool, pins, null, b || {}) : makePart(tool, a, b, props || {});
+    state.parts.push(p);
+  });
+  state.mode = s.mode; state.probe = s.probe; state.selected = null; state.sample = key;
 }
 
 /* ---------- state ---------- */
-const saved = store.get('bb-bench-v1');
+const saved = store.get('bb-bench-v2') || store.get('bb-bench-v1');
 const state = {
   tab: 'board', series: 'E24', sym: 'IEC', tool: 'select', pending: null, hover: null, selected: null,
-  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true
+  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: ''
 };
 if (saved && Array.isArray(saved.parts)) {
-  Object.assign(state, { series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false });
-  state.parts = saved.parts;
+  Object.assign(state, { series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
+  state.parts = saved.parts.filter(p => p.type === 'wire' || p.type === 'GND' || ELEMENT_TYPES.includes(p.type));
   uid = Math.max(1, ...state.parts.map(p => +String(p.id).slice(1) + 1 || 1));
-} else {
-  state.parts = sampleParts();
-  state.probe = 'L9';
-}
-// sampleParts() sets probe for its RC node
-function save() { store.set('bb-bench-v1', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV }); }
+} else loadSample('basics');
+function save() { store.set('bb-bench-v2', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV, sample: state.sample }); }
 
 /* ---------- board geometry ---------- */
 const P = 18, X0 = 40;
@@ -528,7 +582,7 @@ for (const r of Object.keys(ROW_Y)) for (let c = 1; c <= COLS; c++) ALL_HOLES.pu
 
 function drawBase() {
   let s = `<rect x="2" y="2" width="608" height="330" rx="9" fill="var(--board)" stroke="var(--board-edge)" stroke-width="1.5"/>`;
-  s += `<rect x="8" y="166" width="596" height="12" rx="3" fill="var(--board-groove)"/>`;
+  s += `<rect x="8" y="160" width="596" height="14" rx="3" fill="var(--board-groove)"/>`;
   const W = colX(COLS) + 10, x1 = X0 - 10;
   s += `<line x1="${x1}" y1="9" x2="${W}" y2="9" stroke="var(--rail-red)" stroke-width="1.6"/>`;
   s += `<line x1="${x1}" y1="49" x2="${W}" y2="49" stroke="var(--rail-blue)" stroke-width="1.6"/>`;
@@ -538,12 +592,13 @@ function drawBase() {
   s += T(18, 23, '+', 'font-size="11" fill="var(--rail-red)"') + T(18, 41, '−', 'font-size="11" fill="var(--rail-blue)"');
   s += T(18, 299, '−', 'font-size="11" fill="var(--rail-blue)"') + T(18, 317, '+', 'font-size="11" fill="var(--rail-red)"');
   for (const r of 'abcdefghij') s += T(26, ROW_Y[r] + 3, r);
-  for (let c = 1; c <= COLS; c++) if (c === 1 || c % 5 === 0) s += T(colX(c), 175, c, 'font-size="7"');
+  for (let c = 1; c <= COLS; c++) if (c === 1 || c % 5 === 0) s += T(colX(c), 182, c, 'font-size="7"');
   for (const k of ALL_HOLES) { const { x, y } = holeXY(k); s += `<rect x="${x - 2.3}" y="${y - 2.3}" width="4.6" height="4.6" rx="0.6" fill="var(--hole)"/>`; }
   $('bb-base').innerHTML = s;
 }
 
 /* ---------- part drawing ---------- */
+const MONO = 'font-family="JetBrains Mono, monospace"';
 function bandsSVG(bands, x, w, h, y) {
   if (!bands) return '';
   const n = bands.length, gap = w / (n + 1.6);
@@ -552,8 +607,48 @@ function bandsSVG(bands, x, w, h, y) {
     return `<rect x="${bx}" y="${y}" width="${gap * 0.5}" height="${h}" fill="${b.h}"/>`;
   }).join('');
 }
+function nameTag(x, y, name) {
+  return `<text x="${x}" y="${y}" font-size="7.5" text-anchor="middle" ${MONO} fill="#2b2f33" font-weight="500" paint-order="stroke" stroke="var(--board)" stroke-width="2.5">${esc(name)}</text>`;
+}
+/* parts with a footprint: TO-92, TO-220, trimmer, DIP-8 */
+function footprintSVG(p, cat, r, sel) {
+  const pts = p.pins.map(holeXY);
+  const legs = pts.map(q => `<circle cx="${q.x}" cy="${q.y}" r="2.3" fill="#b9c0c4" stroke="#5d6468" stroke-width="0.6"/>`).join('');
+  const short = cat.mpn.replace(/^(Bourns |LM|PN)/, m => m === 'LM' ? 'LM' : '').replace(/T(-[\d.]+)?$/, '$1');
+  let body = '', box;
+  if (cat.footprint === 'dip8') {
+    const x0 = pts[0].x - 10, x1 = pts[3].x + 10, y0 = ROW_Y.e - 8, y1 = ROW_Y.f + 8;
+    box = [x0, y0, x1, y1];
+    body = `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="2" fill="#1f2326"/>
+      <path d="M${x0} ${(y0 + y1) / 2 - 5} a5 5 0 0 1 0 10" fill="#3a3f43"/>
+      <circle cx="${pts[0].x}" cy="${y1 - 6}" r="1.8" fill="#3a3f43"/>
+      <text x="${(x0 + x1) / 2 + 3}" y="${(y0 + y1) / 2 + 3}" font-size="8.5" text-anchor="middle" ${MONO} fill="#e9eaeb">${esc(cat.mpn)}</text>`;
+  } else if (p.type === 'POT') {
+    const cx = (pts[0].x + pts[2].x) / 2, cy = pts[0].y - 10, pos = p.pos ?? 0.5, ang = -135 + 270 * pos;
+    box = [cx - 18, cy - 15, cx + 18, cy + 15];
+    body = `<rect x="${cx - 17}" y="${cy - 14}" width="34" height="27" rx="2" fill="#2f5fa8"/>
+      <circle cx="${cx}" cy="${cy - 1}" r="9" fill="#f0efe8"/>
+      <g transform="translate(${cx} ${cy - 1}) rotate(${ang})"><rect x="-1.4" y="-8" width="2.8" height="16" fill="#6c6f72"/><rect x="-1.4" y="-8" width="2.8" height="4" fill="#d23b3b"/></g>`;
+  } else if (/TO-220/.test(cat.pkg)) {
+    const x0 = pts[0].x - 9, x1 = pts[2].x + 9, y = pts[0].y;
+    box = [x0, y - 30, x1, y + 4];
+    body = `<rect x="${x0 + 2}" y="${y - 30}" width="${x1 - x0 - 4}" height="12" rx="1" fill="#b8bec2"/><circle cx="${(x0 + x1) / 2}" cy="${y - 24}" r="3" fill="var(--board)"/>
+      <rect x="${x0}" y="${y - 19}" width="${x1 - x0}" height="16" rx="1.5" fill="#1f2326"/>
+      <text x="${(x0 + x1) / 2}" y="${y - 8}" font-size="7" text-anchor="middle" ${MONO} fill="#e9eaeb">${esc(short)}</text>`;
+  } else { // TO-92
+    const x0 = pts[0].x - 8, x1 = pts[2].x + 8, y = pts[0].y;
+    box = [x0, y - 16, x1, y + 3];
+    body = `<path d="M${x0} ${y - 2} V${y - 9} Q${(x0 + x1) / 2} ${y - 22} ${x1} ${y - 9} V${y - 2} Z" fill="#1f2326"/>
+      <text x="${(x0 + x1) / 2}" y="${y - 6}" font-size="6.5" text-anchor="middle" ${MONO} fill="#e9eaeb">${esc(short.replace(/^2N/, ''))}</text>`;
+  }
+  const pinLabels = state.selected === p.id ? pts.map((q, k) => `<text x="${q.x}" y="${cat.footprint === 'dip8' ? (k < 4 ? q.y + 12 : q.y - 8) : q.y + 11}" font-size="6.5" text-anchor="middle" ${MONO} fill="var(--signal)" paint-order="stroke" stroke="var(--board)" stroke-width="2">${esc(cat.pins[k])}</text>`).join('') : '';
+  const halo = sel ? `<rect x="${box[0] - 4}" y="${box[1] - 4}" width="${box[2] - box[0] + 8}" height="${box[3] - box[1] + 8}" rx="5" fill="var(--signal)" fill-opacity="0.18" stroke="var(--signal)" stroke-width="1.2"/>` : '';
+  const tag = nameTag((box[0] + box[2]) / 2, box[1] - 3, p.name);
+  return `<g class="part" data-part="${p.id}">${halo}${body}${legs}${pinLabels}${tag}</g>`;
+}
 function partSVG(p, r) {
   const sel = state.selected === p.id;
+  const cat = catalogOf(p);
   if (p.type === 'GND') {
     const { x, y } = holeXY(p.a);
     return `<g class="part" data-part="${p.id}">
@@ -563,6 +658,7 @@ function partSVG(p, r) {
       ${sel ? `<circle cx="${x}" cy="${y - 7}" r="11" fill="none" stroke="var(--signal)" stroke-width="1.5" stroke-dasharray="3 2"/>` : ''}
     </g>`;
   }
+  if (p.pins) return footprintSVG(p, cat, r, sel);
   const A = holeXY(p.a), B = holeXY(p.b);
   const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
   const ang = Math.atan2(dy, dx) * 180 / Math.PI;
@@ -579,23 +675,35 @@ function partSVG(p, r) {
       <path d="M${A.x} ${A.y} Q${cx} ${cy} ${B.x} ${B.y}" fill="none" stroke="transparent" stroke-width="12"/>
       ${ends}</g>`;
   }
-  const leadCol = (p.type === 'VDC' || p.type === 'VAC') ? ['#d23b3b', '#2b2f33'] : ['#9aa2a6', '#9aa2a6'];
-  const leadW = (p.type === 'VDC' || p.type === 'VAC') ? 2.6 : 1.6;
-  let leads = `<line x1="${A.x}" y1="${A.y}" x2="${mx}" y2="${my}" stroke="${leadCol[0]}" stroke-width="${leadW}"/><line x1="${mx}" y1="${my}" x2="${B.x}" y2="${B.y}" stroke="${leadCol[1]}" stroke-width="${leadW}"/>`;
-  const bl = Math.min(28, len - 6);
+  const isSrc = p.type === 'VDC' || p.type === 'VAC';
+  const leadCol = isSrc ? ['#d23b3b', '#2b2f33'] : ['#9aa2a6', '#9aa2a6'];
+  const leadW = isSrc ? 2.6 : 1.6;
+  const leads = `<line x1="${A.x}" y1="${A.y}" x2="${mx}" y2="${my}" stroke="${leadCol[0]}" stroke-width="${leadW}"/><line x1="${mx}" y1="${my}" x2="${B.x}" y2="${B.y}" stroke="${leadCol[1]}" stroke-width="${leadW}"/>`;
+  const bl = Math.max(8, Math.min(28, len - 6));
   let body = '';
   if (p.type === 'R') {
-    const metal = p.tol <= 2;
-    const bands = colorBands(p.value, p.tol);
-    body = `<rect x="${-bl / 2}" y="-4.8" width="${bl}" height="9.6" rx="4" fill="${metal ? '#8fb3dc' : '#e2c597'}" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` + bandsSVG(bands, -bl / 2, bl, 9.6, -4.8);
+    const big = p.pRating >= 1;
+    const fill = p.pRating >= 5 ? '#f1f0ea' : big ? '#6f8fb5' : p.tol <= 2 ? '#8fb3dc' : '#e2c597';
+    const h = p.pRating >= 5 ? 12 : big ? 11 : 9.6;
+    body = `<rect x="${-bl / 2}" y="${-h / 2}" width="${bl}" height="${h}" rx="${p.pRating >= 5 ? 1 : 4}" fill="${fill}" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` +
+      (p.pRating >= 5 ? `<text x="0" y="2.5" font-size="5.5" text-anchor="middle" ${MONO} fill="#333">${esc(rkm(p.value))}</text>` : bandsSVG(colorBands(p.value, p.tol), -bl / 2, bl, h, -h / 2));
   } else if (p.type === 'C') {
-    if (p.value >= 1e-6) {
+    if (p.polarized || (!p.model && p.value >= 1e-6)) {
       body = `<rect x="${-bl / 2.4}" y="-6.5" width="${bl / 1.2}" height="13" rx="2.5" fill="#24406e"/><rect x="${bl / 2.4 - 5}" y="-6.5" width="4" height="13" fill="#c7d3e6"/><text x="${bl / 2.4 - 3}" y="2.4" font-size="6" text-anchor="middle" fill="#24406e" font-family="sans-serif">−</text>`;
+    } else if (p.dielectric === 'film') {
+      body = `<rect x="${-bl / 2.6}" y="-6" width="${bl / 1.3}" height="12" rx="1.5" fill="#c9372c"/><text x="0" y="2.2" font-size="5.5" text-anchor="middle" ${MONO} fill="#fbe9e7">${capCodeEncode(p.value)}</text>`;
     } else {
-      body = `<ellipse cx="0" cy="0" rx="${Math.min(9, bl / 2)}" ry="7" fill="#d9822b" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/><text x="0" y="2.4" font-size="6" text-anchor="middle" fill="#3b2410" font-family="JetBrains Mono, monospace">${capCodeEncode(p.value)}</text>`;
+      const col = p.dielectric === 'C0G' ? '#c98f3a' : '#d9822b';
+      body = `<ellipse cx="0" cy="0" rx="${Math.min(9, bl / 2)}" ry="7" fill="${col}" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/><text x="0" y="2.4" font-size="6" text-anchor="middle" fill="#3b2410" ${MONO}>${capCodeEncode(p.value)}</text>`;
     }
   } else if (p.type === 'L') {
-    body = `<rect x="${-bl / 2}" y="-5.5" width="${bl}" height="11" rx="5" fill="#3f7a4b" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` + bandsSVG(colorBands(p.value / 1e-6, 10), -bl / 2, bl, 11, -5.5);
+    body = p.model === 'L-PWR'
+      ? `<rect x="${-bl / 2.6}" y="-7" width="${bl / 1.3}" height="14" rx="3" fill="#33393d"/><circle cx="0" cy="0" r="4" fill="#b87333"/>`
+      : `<rect x="${-bl / 2}" y="-5.5" width="${bl}" height="11" rx="5" fill="#3f7a4b" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` + bandsSVG(colorBands(p.value / 1e-6, 10), -bl / 2, bl, 11, -5.5);
+  } else if (p.type === 'D') {
+    const glass = cat.body === 'glass' || cat.body === 'zener';
+    body = `<rect x="${-bl / 2.6}" y="-4" width="${bl / 1.3}" height="8" rx="3" fill="${glass ? '#e0893a' : '#26292c'}" fill-opacity="${glass ? 0.85 : 1}" stroke="rgba(0,0,0,.3)" stroke-width="0.5"/>
+      <rect x="${bl / 2.6 - 4}" y="-4" width="2.6" height="8" fill="${glass ? '#1b1b1b' : '#c9cdd1'}"/>`;
   } else if (p.type === 'LED') {
     const t = LED_TYPES[p.color] || LED_TYPES.red;
     const I = r ? r.i[0] : 0;
@@ -603,57 +711,75 @@ function partSVG(p, r) {
     body = (glow ? `<circle cx="0" cy="0" r="${9 + 9 * glow}" fill="${t.hex}" opacity="${0.18 + 0.35 * glow}" filter="url(#glow)"/>` : '') +
       `<circle cx="0" cy="0" r="7" fill="${t.hex}" fill-opacity="${0.45 + 0.55 * glow}" stroke="rgba(0,0,0,.35)" stroke-width="0.7"/>` +
       `<line x1="6.2" y1="-4" x2="6.2" y2="4" stroke="rgba(0,0,0,.45)" stroke-width="1.2"/>`;
+  } else if (p.type === 'SW') {
+    if (p.momentary) body = `<rect x="-8" y="-8" width="16" height="16" rx="1.5" fill="#2b2f33"/><circle cx="0" cy="0" r="${p.closed ? 4 : 5}" fill="${p.closed ? '#9b2c24' : '#d23b3b'}"/>`;
+    else body = `<rect x="-11" y="-5" width="22" height="10" rx="1.5" fill="#2b2f33"/><rect x="${p.closed ? 1 : -9}" y="-3.5" width="8" height="7" rx="1" fill="#e9eaeb"/>`;
   } else if (p.type === 'VDC') {
-    body = `<rect x="-17" y="-9" width="34" height="18" rx="3" fill="#2b3135"/><text x="0" y="3.4" font-size="9" text-anchor="middle" fill="#f2f2f2" font-family="JetBrains Mono, monospace">${esc(fmtEng(p.value, 'V', 3).replace(' ', ''))}</text>`;
+    const lbl = p.model === 'V-9V' ? '9V' : p.model === 'V-CR2032' ? 'CR2032' : esc(fmtEng(p.value, 'V', 3).replace(' ', ''));
+    const fill = p.model === 'V-BENCH' ? '#2b3135' : p.model === 'V-USB' ? '#2c4f80' : p.model === 'V-IDEAL' ? '#565c60' : '#7a5a1e';
+    body = `<rect x="-17" y="-9" width="34" height="18" rx="3" fill="${fill}"/><text x="0" y="3.4" font-size="${lbl.length > 5 ? 7 : 9}" text-anchor="middle" fill="#f2f2f2" ${MONO}>${lbl}</text>`;
   } else if (p.type === 'VAC') {
-    body = `<circle cx="0" cy="0" r="10" fill="#2b3135"/><path d="M-6 0 c2 -6 4 -6 6 0 s4 6 6 0" stroke="#f2f2f2" stroke-width="1.4" fill="none"/>`;
+    body = `<circle cx="0" cy="0" r="10" fill="${p.rint > 0 ? '#2c4f80' : '#2b3135'}"/><path d="M-6 0 c2 -6 4 -6 6 0 s4 6 6 0" stroke="#f2f2f2" stroke-width="1.4" fill="none"/>`;
   }
-  // body is drawn upright for sources so text stays readable
-  const rot = (p.type === 'VDC' || p.type === 'VAC') ? 0 : ang;
+  // sources and switches are drawn upright so their text and lever stay readable
+  const rot = isSrc ? 0 : ang;
   const nx = -dy / len, ny = dx / len;
-  const off = (p.type === 'VDC' || p.type === 'VAC') ? 24 : 14;
+  const off = isSrc ? 24 : 14;
   const lx = mx + nx * off * (ny > 0 ? -1 : 1), ly = my + ny * off * (ny > 0 ? -1 : 1) + 3;
-  const label = `<text x="${lx}" y="${ly}" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="#2b2f33" font-weight="500" paint-order="stroke" stroke="var(--board)" stroke-width="2.5">${esc(p.name)}</text>`;
-  return `<g class="part" data-part="${p.id}">${halo}${hit}${leads}${ends}<g transform="translate(${mx} ${my}) rotate(${rot})">${body}</g>${label}</g>`;
+  return `<g class="part" data-part="${p.id}">${halo}${hit}${leads}${ends}<g transform="translate(${mx} ${my}) rotate(${rot})">${body}</g>${nameTag(lx, ly, p.name)}</g>`;
 }
 
 /* ---------- render ---------- */
 let result = null;
 function recompute() { result = analyze(state.parts, { mode: state.mode, freq: state.freq }); }
-
 function renderParts() {
-  const order = { wire: 0, GND: 1, R: 2, C: 2, L: 2, LED: 3, VAC: 4, VDC: 4 };
-  const sorted = [...state.parts].sort((a, b) => order[a.type] - order[b.type]);
+  const order = { wire: 0, GND: 1, R: 2, C: 2, L: 2, D: 2, SW: 2, LED: 3, POT: 3, BJT: 3, MOS: 3, REG: 3, OPAMP: 3, VAC: 4, VDC: 4 };
+  const sorted = [...state.parts].sort((a, b) => (order[a.type] ?? 2) - (order[b.type] ?? 2));
   const defs = `<defs><filter id="glow" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="3"/></filter></defs>`;
-  $('bb-parts').innerHTML = defs + sorted.map(p => partSVG(p, result && result.parts[p.id])).join('');
+  $('bb-parts').innerHTML = defs + sorted.map(p => partSVG(p, result && result.ok && result.parts[p.id])).join('');
   $('board').classList.toggle('placing', state.tool !== 'select');
 }
 function vText(root) {
   const v = result && result.nodeV.get(root);
   if (!v) return null;
-  return state.mode === 'DC' ? fmtNum(v[0], Math.abs(v[0]) >= 10 ? 1 : 2) : fmtNum(cabs(v), Math.abs(cabs(v)) >= 10 ? 1 : 2);
+  const m = state.mode === 'DC' ? v[0] : cabs(v);
+  return fmtNum(m, Math.abs(m) >= 10 ? 1 : 2);
 }
 function renderVolt() {
   if (!state.showV || !result || !result.ok || result.empty) { $('bb-volt').innerHTML = ''; return; }
-  const topo = result.topo; let s = '';
+  const topo = result.topo, strips = []; let s = '';
   for (const b of topo.parent.keys()) {
     const root = topo.find(b);
     if (!topo.used.has(root)) continue;
     const t = vText(root); if (t === null) continue;
-    const isG = root === topo.gnd;
-    const fill = isG ? 'var(--board-ink)' : 'var(--accent)';
-    if (RAILS.includes(b)) {
-      s += `<text x="${colX(COLS) + 14}" y="${ROW_Y[b] + 3}" font-size="7.5" font-family="JetBrains Mono, monospace" fill="${fill}">${t}</text>`;
-    } else {
-      const c = +b.slice(1), y = b[0] === 'U' ? 61 : 276;
-      s += `<text x="${colX(c)}" y="${y}" font-size="7" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="${fill}" font-weight="500">${t}</text>`;
-    }
+    const fill = root === topo.gnd ? 'var(--board-ink)' : 'var(--accent)';
+    if (RAILS.includes(b)) s += `<text x="${colX(COLS) + 14}" y="${ROW_Y[b] + 3}" font-size="7.5" ${MONO} fill="${fill}">${t}</text>`;
+    else strips.push({ c: +b.slice(1), top: b[0] === 'U', t, fill });
+  }
+  // stagger labels on neighbouring strips so they don't run together
+  strips.sort((a, b) => a.c - b.c);
+  const last = {};
+  for (const q of strips) {
+    const k = q.top ? 'U' : 'L', prev = last[k];
+    q.alt = prev && prev.c === q.c - 1 && !prev.alt;
+    last[k] = q;
+    const y = q.top ? (q.alt ? 67 : 60) : (q.alt ? 270 : 277);
+    s += `<text x="${colX(q.c)}" y="${y}" font-size="6.8" text-anchor="middle" ${MONO} fill="${q.fill}" font-weight="500">${q.t}</text>`;
   }
   $('bb-volt').innerHTML = s;
 }
+function ghostHoles() {
+  if (!state.hover) return null;
+  const c = CATALOG_BY_ID[state.tool];
+  if (!c || !c.footprint) return null;
+  return footprintHoles(c.footprint, c.footprint === 'dip8' ? 'f' + parseHole(state.hover).c : state.hover);
+}
 function renderOverlay() {
   let s = '';
-  if (state.hover) {
+  const ghost = ghostHoles();
+  if (ghost) {
+    for (const k of ghost) { const { x, y } = holeXY(k); s += `<circle cx="${x}" cy="${y}" r="5" fill="var(--accent)" fill-opacity="0.35" stroke="var(--accent)" stroke-width="1.2"/>`; }
+  } else if (state.hover) {
     const topo = result ? result.topo : topology(state.parts);
     const base = baseNetOfHole(state.hover);
     const root = topo.parent.has(base) ? topo.find(base) : base;
@@ -672,7 +798,8 @@ function renderOverlay() {
 function holeName(k) { const h = parseHole(k); return RAILS.includes(h.r) ? netLabel(h.r) + ', col ' + h.c : h.r + h.c; }
 function renderStatus() {
   const el = $('status');
-  if (state.hover) {
+  const c = CATALOG_BY_ID[state.tool];
+  if (state.hover && !(c && c.footprint)) {
     const topo = result ? result.topo : null;
     const base = baseNetOfHole(state.hover);
     let txt = `<b>${esc(holeName(state.hover))}</b>`;
@@ -681,48 +808,150 @@ function renderStatus() {
       txt += ` · net ${esc(netName(root, topo))}`;
       const v = result.nodeV.get(root);
       if (v) txt += state.mode === 'DC' ? ` · <b>${fmtEng(v[0], 'V')}</b>` : ` · <b>${fmtEng(cabs(v), 'V')} ∠ ${fmtNum(cdeg(v), 1)}°</b> rms`;
+      const pins = [];
+      for (const p of state.parts) if (p.pins) p.pins.forEach((k, q) => { if (topo.find(baseNetOfHole(k)) === root) pins.push(`${p.name}.${catalogOf(p).pins[q]}`); });
+      if (pins.length) txt += ` · ${esc(pins.join(', '))}`;
     } else txt += ' · empty strip';
     if (state.pending) txt += ' · click to place the second lead';
     el.innerHTML = txt;
-  } else if (state.tool !== 'select') {
-    const d = PART_DEFS[state.tool];
-    el.innerHTML = state.tool === 'GND' ? 'Click a hole to mark it as ground (0 V).' : state.pending ? `Now click where the second lead of the ${d.label.toLowerCase()} goes. Esc cancels.` : `Click the hole for the first lead of the ${d.label.toLowerCase()}${state.tool === 'LED' ? ' (anode, +)' : state.tool.startsWith('V') ? ' (+ terminal)' : ''}.`;
-  } else el.innerHTML = 'Hover a hole to see which holes are connected and the voltage there. Click a part to edit it.';
-}
-function renderPalette() {
-  $('palette').innerHTML = Object.entries(PART_DEFS).map(([t, d]) =>
-    `<button class="tool" data-tool="${t}" aria-pressed="${state.tool === t}" title="${d.label} (${d.key.toUpperCase()})"><svg viewBox="0 -2 44 24">${symbol(t)}</svg><span class="lbl">${d.label}</span></button>`).join('');
+  } else if (state.tool === 'GND') el.innerHTML = 'Click a hole to mark it as ground (0 V).';
+  else if (state.tool === 'wire') el.innerHTML = state.pending ? 'Click where the other end of the jumper goes. Esc cancels.' : 'Click the hole for one end of the jumper.';
+  else if (c) {
+    if (c.footprint === 'dip8') el.innerHTML = `Click a column to drop the ${esc(c.mpn)} across the center channel (pin 1 bottom-left).`;
+    else if (c.footprint) el.innerHTML = `Click the hole for the left pin. ${esc(c.mpn)} pins left to right: <b>${esc(c.pins.join(' · '))}</b>.`;
+    else el.innerHTML = state.pending ? `Now click where the second lead of the ${esc(c.name.toLowerCase())} goes. Esc cancels.`
+      : `Click the hole for the first lead of the ${esc(c.name.toLowerCase())}${c.type === 'LED' || c.type === 'D' ? ' (anode)' : c.type === 'VDC' || c.type === 'VAC' ? ' (+ terminal)' : c.polarized || (c.defaults && c.defaults.polarized) ? ' (+ lead)' : ''}.`;
+  } else el.innerHTML = 'Hover a hole to see which holes are connected and the voltage there. Click a part to edit it; click a switch to flip it.';
 }
 
-function partValueText(p) {
+/* ---------- ribbon: quick tools, library menus, search ---------- */
+function renderPalette() {
+  const cur = CATALOG_BY_ID[state.tool];
+  $('palette').innerHTML = Object.entries(QUICK_TOOLS).map(([t, d]) =>
+    `<button class="tool" data-tool="${t}" aria-pressed="${state.tool === t}" title="${d.label} (${d.key.toUpperCase()})">${symSvg(t)}<span class="lbl">${d.label}</span></button>`).join('');
+  $('libcats').innerHTML = CATEGORIES.map(cat => {
+    const active = cur && cur.cat === cat;
+    return `<button class="libbtn" data-cat="${cat}" aria-expanded="${state.menu === cat}" aria-pressed="${!!active}">${cat}<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1 L5 5 L9 1"/></svg></button>`;
+  }).join('');
+  $('placing').innerHTML = cur ? `<span class="placing-chip">${symSvg(symbolKey(cur))}${esc(toolLabel(state.tool))}<button id="placing-x" aria-label="Stop placing">×</button></span>` : '';
+}
+function libItemsFor() {
+  const q = state.query.trim().toLowerCase();
+  if (q) return CATALOG.filter(c => [c.name, c.mpn, c.spec, c.pkg, c.cat, c.type].join(' ').toLowerCase().includes(q));
+  return state.menu ? CATALOG.filter(c => c.cat === state.menu) : [];
+}
+function renderLibrary() {
+  const pop = $('libpop');
+  const items = libItemsFor();
+  if (!state.menu && !state.query.trim()) { pop.hidden = true; return; }
+  pop.hidden = false;
+  const head = state.query.trim() ? `${items.length} part${items.length === 1 ? '' : 's'} matching “${esc(state.query.trim())}”` : esc(state.menu);
+  pop.innerHTML = `<div class="libhead">${head}</div>` + (items.length ? items.map(c =>
+    `<button class="libitem" data-pick="${c.id}" aria-pressed="${state.tool === c.id}">${symSvg(symbolKey(c))}<span class="li-name"><b>${esc(c.mpn.startsWith('Model') ? c.name : c.mpn)}</b> ${esc(c.mpn.startsWith('Model') ? '' : c.name)}</span><span class="li-spec">${esc(c.spec)}</span><span class="li-pkg">${esc(c.pkg)}</span></button>`).join('')
+    : '<p class="note" style="padding:8px">No parts match. Try a part number like 2N3904 or a word like regulator.</p>');
+}
+
+/* ---------- readings ---------- */
+const fmtPh = (z, u) => `${fmtEng(cabs(z), u)}<br>∠${fmtNum(cdeg(z), 1)}°`;
+function pinIdx(p, name) { return catalogOf(p).pins.indexOf(name); }
+function dcOf(p) { return result && result.dc && result.dc.parts[p.id]; }
+function bjtInfo(p, r) {
+  const c = catalogOf(p), pol = c.model.pol;
+  const V = n => r.pinV[pinIdx(p, n)][0], I = n => r.pinI[pinIdx(p, n)][0];
+  const vbe = pol * (V('B') - V('E')), vce = pol * (V('C') - V('E')), ic = pol * I('C'), ib = pol * I('B');
+  const region = vbe < 0.45 || ic < 1e-7 ? 'Cutoff' : vce < 0.25 ? 'Saturation' : 'Active';
+  return { vbe, vce, ic, ib, region };
+}
+function mosInfo(p, r) {
+  const c = catalogOf(p), pol = c.model.pol;
+  const V = n => r.pinV[pinIdx(p, n)][0];
+  const vgs = pol * (V('G') - V('S')), vds = pol * (V('D') - V('S')), id = pol * r.pinI[pinIdx(p, 'D')][0];
+  const region = vgs < c.model.Vto ? 'Off' : vds < vgs - c.model.Vto ? 'On (ohmic)' : 'Saturation';
+  return { vgs, vds, id, region };
+}
+function opampInfo(p, r) {
+  const c = catalogOf(p), v = k => r.pinV[k][0];
+  const vhi = v(c.vp) - c.model.headHi, vlo = v(c.vn) + c.model.headLo;
+  return c.units.map(u => {
+    const vo = v(u.out), io = -r.pinI[u.out][0];
+    const sat = vo > vhi - 0.02 ? 'high' : vo < vlo + 0.02 ? 'low' : null;
+    return { vo, io, sat, span: v(c.vp) - v(c.vn) };
+  });
+}
+function regInfo(p, r) {
+  const c = catalogOf(p), V = n => r.pinV[pinIdx(p, n)][0];
+  const ref = c.model.kind === 'adj' ? V('ADJ') : V('GND');
+  const vin = V('IN'), vout = V('OUT'), iout = -r.pinI[pinIdx(p, 'OUT')][0];
+  return { vin, vout, iout, ref, headroom: vin - vout, pd: r.p };
+}
+function readingCells(p, r) {
+  const ac = state.mode === 'AC';
+  if (ac) {
+    if (p.pins) {
+      const c = catalogOf(p);
+      const keys = p.type === 'BJT' ? ['C', 'B'] : p.type === 'MOS' ? ['D', 'G'] : p.type === 'REG' ? ['OUT', 'IN'] : p.type === 'POT' ? ['W'] : c.units.map(u => c.pins[u.out]);
+      return keys.map(k => [k + ' (rms)', fmtPh(r.pinV[c.pins.indexOf(k)], 'V')]).concat(p.type === 'BJT' ? [['Ic', fmtPh(r.pinI[c.pins.indexOf('C')], 'A')]] : p.type === 'MOS' ? [['Id', fmtPh(r.pinI[c.pins.indexOf('D')], 'A')]] : []).slice(0, 3);
+    }
+    const src = p.type === 'VDC' || p.type === 'VAC';
+    return [['V rms', fmtPh(r.v, 'V')], [src ? 'I out' : 'I rms', fmtPh(src ? [-r.i[0], -r.i[1]] : r.i, 'A')], [src ? 'P out' : 'P avg', fmtEng(src ? -r.p : r.p, 'W')]];
+  }
   switch (p.type) {
-    case 'R': return fmtEng(p.value, 'Ω') + ' ±' + p.tol + '%';
+    case 'BJT': { const b = bjtInfo(p, r); return [['Ic', fmtEng(b.ic, 'A')], ['Ib · β', `${fmtEng(b.ib, 'A')}<br>β ${b.ib > 1e-9 ? Math.round(b.ic / b.ib) : '—'}`], ['Vce · Vbe', `${fmtEng(b.vce, 'V')}<br>${fmtEng(b.vbe, 'V')}`], ['Power', fmtEng(r.p, 'W')]]; }
+    case 'MOS': { const m = mosInfo(p, r); return [['Id', fmtEng(m.id, 'A')], ['Vgs', fmtEng(m.vgs, 'V')], ['Vds', fmtEng(m.vds, 'V')], ['Power', fmtEng(r.p, 'W')]]; }
+    case 'OPAMP': { const u = opampInfo(p, r), c = catalogOf(p); return u.map((x, k) => [c.units.length > 1 ? `Out ${k + 1}` : 'Out', `${fmtEng(x.vo, 'V')}<br>${fmtEng(x.io, 'A')}`]).concat([['Supply', fmtEng(u[0].span, 'V')], ['Power', fmtEng(r.p, 'W')]]); }
+    case 'REG': { const g = regInfo(p, r); return [['Vin → Vout', `${fmtEng(g.vin - g.ref, 'V')}<br>${fmtEng(g.vout - g.ref, 'V')}`], ['Iout', fmtEng(g.iout, 'A')], ['Dissipation', fmtEng(g.pd, 'W')]]; }
+    case 'POT': return [['Wiper', fmtEng(r.pinV[1][0], 'V')], ['Current', fmtEng(Math.max(Math.abs(r.pinI[0][0]), Math.abs(r.pinI[2][0])), 'A')], ['Power', fmtEng(r.p, 'W')]];
+    case 'SW': return [['State', p.closed ? 'Closed' : 'Open'], ['Voltage', fmtEng(r.v[0], 'V')], ['Current', fmtEng(r.i[0], 'A')]];
+  }
+  const src = p.type === 'VDC' || p.type === 'VAC';
+  return [['Voltage', fmtEng(r.v[0], 'V')], [src ? 'Current out' : 'Current', fmtEng(src ? -r.i[0] : r.i[0], 'A')], [src ? 'Power out' : 'Power', fmtEng(src ? -r.p : r.p, 'W')]];
+}
+function partValueText(p) {
+  const c = catalogOf(p);
+  switch (p.type) {
+    case 'R': return fmtEng(p.value, 'Ω') + ' ±' + p.tol + '% · ' + fmtEng(p.pRating, 'W');
     case 'C': return fmtEng(p.value, 'F') + ' · ' + p.vRating + ' V';
     case 'L': return fmtEng(p.value, 'H');
-    case 'LED': return (LED_TYPES[p.color] || LED_TYPES.red).label.split(' (')[0];
-    case 'VDC': return fmtEng(p.value, 'V') + ' DC';
-    case 'VAC': return fmtEng(p.value, 'V') + ' rms';
+    case 'LED': return (LED_TYPES[p.color] || LED_TYPES.red).label.split(' (')[0] + ' LED';
+    case 'VDC': return fmtEng(p.value, 'V') + ' · ' + (c ? c.name : 'DC');
+    case 'VAC': return fmtEng(p.value, 'V') + ' rms' + (p.rint ? ' · 50 Ω' : '');
+    case 'POT': return fmtEng(p.value, 'Ω') + ' at ' + Math.round((p.pos ?? 0.5) * 100) + '%';
+    case 'SW': return c.name;
   }
-  return '';
+  return c ? c.mpn : '';
 }
-function checkPart(p, r) {
-  if (!r) return { cls: 'off', text: '—' };
-  const Iabs = cabs(r.i), Vabs = cabs(r.v);
+function checkPart(p, rr) {
+  if (!rr) return { cls: 'off', text: '—' };
+  const r = (['D', 'LED', 'BJT', 'MOS', 'OPAMP', 'REG', 'SW', 'POT'].includes(p.type) && dcOf(p)) || rr;
+  const c = catalogOf(p), rt = (c && c.rating) || {};
+  const Iabs = r.i ? cabs(r.i) : 0, Vabs = r.v ? cabs(r.v) : 0;
   if (p.type === 'R') {
-    const frac = r.p / p.pRating;
+    const frac = rr.p / p.pRating;
     if (frac > 1) return { cls: 'bad', text: `Over ${fmtEng(p.pRating, 'W')} rating` };
     if (frac > 0.5) return { cls: 'warn', text: `${Math.round(frac * 100)}% of rating; derate to 50%` };
     return { cls: 'ok', text: `${Math.round(frac * 100)}% of ${fmtEng(p.pRating, 'W')}` };
   }
   if (p.type === 'LED') {
-    if (state.mode === 'DC' && !(result.ledOn && result.ledOn[p.id])) return r.v[0] < -5 ? { cls: 'bad', text: 'Reverse voltage over 5 V' } : { cls: 'off', text: 'Off (below Vf or reversed)' };
-    if (Iabs > (p.ifMax || 0.02)) return { cls: 'bad', text: `Over ${fmtEng(p.ifMax || 0.02, 'A')} max` };
-    if (state.mode === 'DC' && Iabs < 1e-3) return { cls: 'warn', text: 'Dim (under 1 mA)' };
+    const I = r.i[0];
+    if (r.v[0] < -5) return { cls: 'bad', text: 'Reverse voltage over 5 V' };
+    if (I > (p.ifMax || 0.02)) return { cls: 'bad', text: `Over ${fmtEng(p.ifMax || 0.02, 'A')} max` };
+    if (I < 1e-4) return { cls: 'off', text: 'Off' };
+    if (I < 1e-3) return { cls: 'warn', text: 'Dim (under 1 mA)' };
     return { cls: 'ok', text: 'Lit, within rating' };
+  }
+  if (p.type === 'D') {
+    const I = r.i[0], P = r.p;
+    if (rt.vrMax && r.v[0] < -rt.vrMax) return { cls: 'bad', text: `Over ${rt.vrMax} V reverse rating` };
+    if (rt.ifMax && I > rt.ifMax) return { cls: 'bad', text: `Over ${fmtEng(rt.ifMax, 'A')} forward rating` };
+    if (rt.pdMax && P > rt.pdMax) return { cls: 'bad', text: `Over ${fmtEng(rt.pdMax, 'W')} dissipation` };
+    if (c.zener && I < -1e-4) return { cls: 'ok', text: `Regulating, ${fmtEng(-I, 'A')} (Izt ${fmtEng(c.model.IBV, 'A')})` };
+    if (I > 1e-5) return { cls: 'ok', text: 'Conducting' };
+    return { cls: 'off', text: c.zener ? 'Below Vz' : 'Blocking' };
   }
   if (p.type === 'C') {
     const vpk = state.mode === 'AC' ? Vabs * Math.SQRT2 : Vabs;
-    if (p.value >= 1e-6 && state.mode === 'DC' && r.v[0] < -0.5) return { cls: 'bad', text: 'Electrolytic reverse-biased' };
+    const v0 = result && result.dc && result.dc.parts[p.id] ? result.dc.parts[p.id].v[0] : rr.v[0];
+    if ((p.polarized || (!p.model && p.value >= 1e-6)) && v0 < -0.5) return { cls: 'bad', text: 'Electrolytic reverse-biased' };
     if (vpk > p.vRating) return { cls: 'bad', text: `Over ${p.vRating} V rating` };
     if (vpk > 0.8 * p.vRating) return { cls: 'warn', text: 'Above 80% of voltage rating' };
     return { cls: 'ok', text: `${Math.round(vpk / p.vRating * 100)}% of ${p.vRating} V` };
@@ -731,9 +960,44 @@ function checkPart(p, r) {
     if (Iabs > p.iRating) return { cls: 'bad', text: `Over ${fmtEng(p.iRating, 'A')}, may saturate` };
     return { cls: 'ok', text: `${Math.round(Iabs / p.iRating * 100)}% of ${fmtEng(p.iRating, 'A')}` };
   }
+  if (p.type === 'SW') return Iabs > p.iRating ? { cls: 'bad', text: `Over ${fmtEng(p.iRating, 'A')} contact rating` } : { cls: p.closed ? 'ok' : 'off', text: p.closed ? 'Closed' : 'Open' };
+  if (p.type === 'POT') return r.p > p.pRating ? { cls: 'bad', text: `Over ${fmtEng(p.pRating, 'W')} rating` } : { cls: 'ok', text: `${Math.round(r.p / p.pRating * 100)}% of ${fmtEng(p.pRating, 'W')}` };
+  if (p.type === 'BJT') {
+    const b = bjtInfo(p, r);
+    if (b.ic > rt.icMax) return { cls: 'bad', text: `Ic over ${fmtEng(rt.icMax, 'A')}` };
+    if (r.p > rt.pdMax) return { cls: 'bad', text: `Over ${fmtEng(rt.pdMax, 'W')} dissipation` };
+    if (b.vce > rt.vceoMax) return { cls: 'bad', text: `Vce over ${rt.vceoMax} V` };
+    return { cls: b.region === 'Cutoff' ? 'off' : 'ok', text: b.region + (r.p > 0.5 * rt.pdMax ? ', warm' : '') };
+  }
+  if (p.type === 'MOS') {
+    const m = mosInfo(p, r);
+    if (Math.abs(m.vgs) > rt.vgsMax) return { cls: 'bad', text: `Vgs over ±${rt.vgsMax} V` };
+    if (m.id > rt.idMax) return { cls: 'bad', text: `Id over ${fmtEng(rt.idMax, 'A')}` };
+    if (r.p > rt.pdMax) return { cls: 'bad', text: `Over ${fmtEng(rt.pdMax, 'W')} dissipation` };
+    if (m.vds > rt.vdsMax) return { cls: 'bad', text: `Vds over ${rt.vdsMax} V` };
+    return { cls: m.region === 'Off' ? 'off' : 'ok', text: m.region };
+  }
+  if (p.type === 'OPAMP') {
+    const u = opampInfo(p, r);
+    if (u[0].span > rt.vsMax) return { cls: 'bad', text: `Supply over ${rt.vsMax} V` };
+    if (u[0].span < rt.vsMin) return { cls: u[0].span < 0.5 ? 'off' : 'warn', text: u[0].span < 0.5 ? 'No supply' : `Supply under ${rt.vsMin} V minimum` };
+    if (u.some(x => Math.abs(x.io) > c.model.Ilim * 0.9)) return { cls: 'bad', text: 'Output in current limit' };
+    const s = u.map((x, k) => x.sat ? `${u.length > 1 ? 'out ' + (k + 1) + ' ' : ''}clipped ${x.sat}` : null).filter(Boolean);
+    return s.length ? { cls: 'warn', text: s.join(', ') } : { cls: 'ok', text: 'Linear' };
+  }
+  if (p.type === 'REG') {
+    const g = regInfo(p, r);
+    if (g.vin - g.ref < 1) return { cls: 'off', text: 'No input' };
+    if (rt.vinMax && g.vin - g.ref > rt.vinMax) return { cls: 'bad', text: `Input over ${rt.vinMax} V` };
+    if (g.iout > rt.iMax) return { cls: 'bad', text: `Over ${fmtEng(rt.iMax, 'A')} output` };
+    if (g.pd > rt.pdMax) return { cls: 'bad', text: `${fmtEng(g.pd, 'W')}: needs a heatsink` };
+    if (g.headroom < c.model.Vdo + 0.15) return { cls: 'warn', text: `In dropout (needs ${c.model.Vdo} V headroom)` };
+    if (rt.iMin && g.iout < rt.iMin) return { cls: 'warn', text: `Under ${fmtEng(rt.iMin, 'A')} minimum load` };
+    return { cls: 'ok', text: 'Regulating' };
+  }
   if (p.type === 'VDC' || p.type === 'VAC') {
-    const delivered = -r.p;
-    return { cls: 'off', text: `Delivers ${fmtEng(delivered, 'W')}` };
+    if (p.iLimit > 0 && state.mode === 'DC' && -rr.i[0] > 0.97 * p.iLimit) return { cls: 'warn', text: `Current limit (${fmtEng(p.iLimit, 'A')})` };
+    return { cls: 'off', text: `Delivers ${fmtEng(-rr.p, 'W')}` };
   }
   return { cls: 'off', text: '' };
 }
@@ -743,21 +1007,14 @@ function renderResults() {
   if (!result.ok) { el.innerHTML = result.errors.map(e => `<div class="errbox">${esc(e)}</div>`).join(''); return; }
   const ac = state.mode === 'AC';
   const rows = result.topo.els.map(p => {
-    const r = result.parts[p.id], c = checkPart(p, r);
-    const vtxt = ac ? `${fmtEng(cabs(r.v), 'V')}<br>∠${fmtNum(cdeg(r.v), 1)}°` : fmtEng(r.v[0], 'V');
-    let itxt = ac ? `${fmtEng(cabs(r.i), 'A')}<br>∠${fmtNum(cdeg(r.i), 1)}°` : fmtEng(r.i[0], 'A');
-    let ptxt = fmtEng(r.p, 'W'), il = ac ? 'I rms' : 'Current', pl = ac ? 'P avg' : 'Power';
-    if (p.type === 'VDC' || p.type === 'VAC') {
-      itxt = ac ? `${fmtEng(cabs(r.i), 'A')}<br>∠${fmtNum(cdeg([-r.i[0], -r.i[1]]), 1)}°` : fmtEng(-r.i[0], 'A');
-      ptxt = fmtEng(-r.p, 'W'); il += ' out'; pl += ' out';
-    }
+    const r = result.parts[p.id], c = checkPart(p, r), cells = readingCells(p, r);
     return `<div class="rd ${state.selected === p.id ? 'sel' : ''}" data-part="${p.id}" role="button" tabindex="0">
       <div class="rd-name">${esc(p.name)}<span>${esc(partValueText(p))}</span></div><span class="chip ${c.cls}">${esc(c.text)}</span>
-      <div class="rd-vals"><div><small>${ac ? 'V rms' : 'Voltage'}</small>${vtxt}</div><div><small>${il}</small>${itxt}</div><div><small>${pl}</small>${ptxt}</div></div></div>`;
+      <div class="rd-vals" style="grid-template-columns:repeat(${cells.length}, minmax(0, 1fr))">${cells.map(([k, v]) => `<div><small>${k}</small>${v}</div>`).join('')}</div></div>`;
   }).join('');
   el.innerHTML = `<div class="readings">${rows}</div>` +
     (result.warnings.length ? `<ul class="warnlist">${result.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '') +
-    `<p class="note" style="margin-top:8px">Measured from the first lead to the second (for LEDs and supplies, + to −). ${ac ? 'AC values are rms phasors at ' + fmtEng(state.freq, 'Hz') + '; DC supplies act as shorts and LEDs use their small-signal resistance.' : 'Capacitors are open and inductors are shorts at DC.'}${result.topo.autoGround ? ' No ground marker placed, so the − lead of the first supply is 0 V.' : ''}</p>`;
+    `<p class="note" style="margin-top:8px">Two-lead parts read from the first lead to the second (for diodes and supplies, + to −). ${ac ? 'AC values are rms small-signal phasors at ' + fmtEng(state.freq, 'Hz') + ', linearized at the DC operating point; DC supplies act as shorts. Rating checks use the DC operating point.' : 'Capacitors are open and inductors are shorts at DC.'}${result.topo.autoGround ? ' No ground marker placed, so the − lead of the first supply is 0 V.' : ''}</p>`;
 }
 function renderSummary() {
   const el = $('summary');
@@ -768,57 +1025,77 @@ function renderSummary() {
   const supplies = result.topo.els.filter(p => p.type === 'VDC' || p.type === 'VAC');
   const totalP = supplies.reduce((s, p) => s + -result.parts[p.id].p, 0);
   el.innerHTML = `<h2>Readings</h2><div class="chips">${counts.ok ? `<span class="chip ok">${counts.ok} within rating</span>` : ''}${counts.warn ? `<span class="chip warn">${counts.warn} near a limit</span>` : ''}${counts.bad ? `<span class="chip bad">${counts.bad} over a limit</span>` : ''}${result.warnings.length ? `<span class="chip warn">${result.warnings.length} wiring note${result.warnings.length > 1 ? 's' : ''}</span>` : ''}</div>
-    <p class="note" style="margin:8px 0 4px">${result.topo.used.size} nodes · supplies deliver ${fmtEng(totalP, 'W')} · ground on ${esc(netName(result.topo.gnd, result.topo))}</p>`;
+    <p class="note" style="margin:8px 0 4px">${result.topo.used.size} nodes · supplies deliver ${fmtEng(totalP, 'W')} · ground on ${esc(netName(result.topo.gnd, result.topo))} · solved by ${esc(result.method || 'Newton–Raphson')}</p>`;
 }
 
+/* ---------- inspector ---------- */
 function fieldRow(id, label, value, extra = '') { return `<label for="${id}">${label}<span class="inrow"><input type="text" id="${id}" value="${esc(value)}">${extra}</span></label>`; }
-function selectRow(id, label, opts, cur) { return `<label for="${id}">${label}<select id="${id}">${opts.map(([v, t]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`; }
+function selectRow(id, label, opts, cur) { return `<label for="${id}">${label}<select id="${id}">${opts.map(([v, t]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`; }
+const engIn = (v, sig = 4) => fmtEng(v, '', sig).replace(' ', '');
 function renderInspector() {
   const el = $('inspector');
   const p = state.parts.find(x => x.id === state.selected);
   if (!p) {
     el.innerHTML = `<div class="eyebrow">Inspector</div>
-      <p class="small" style="margin:4px 0 0">Pick a part in the ribbon, then click two holes for its leads. Click a placed part or a reading to edit it.</p>
-      <p class="small muted" style="margin:6px 0 0">Columns a–e and f–j are each one connected strip; the rails run the full length. 2.54 mm pitch, like a real half-size board.</p>`;
+      <p class="small" style="margin:4px 0 0">Open a category in the ribbon (or search by part number), pick a part, then click the board. Click a placed part or a reading to edit it.</p>
+      <p class="small muted" style="margin:6px 0 0">Columns a–e and f–j are each one connected strip; the rails run the full length. DIP chips straddle the center channel. 2.54 mm pitch, like a real half-size board.</p>`;
     return;
   }
-  const d = PART_DEFS[p.type];
+  if (p.type === 'wire' || p.type === 'GND') {
+    el.innerHTML = `<div class="eyebrow">Inspector · ${esc(holeName(p.a))}${p.b ? ' → ' + esc(holeName(p.b)) : ''}</div><h2>${p.type === 'wire' ? 'Jumper wire' : 'Ground marker'}</h2>
+      ${p.type === 'wire' ? `<div class="form" style="margin-top:8px"><label>Color<span class="inrow">${WIRE_COLORS.map(c => `<button class="btn" data-wc="${c}" style="background:${c};width:28px;height:24px;padding:0;${p.color === c ? 'outline:2px solid var(--ink);outline-offset:1px' : ''}" aria-label="wire color"></button>`).join('')}</span></label></div>` : '<p class="small muted">This net is 0 V. Only one ground marker is kept.</p>'}
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm danger" id="in-del">Delete</button><button class="btn sm" id="in-done">Done</button></div>`;
+    return;
+  }
+  const c = catalogOf(p);
+  const family = CATALOG.filter(x => x.type === p.type && (x.footprint || null) === (c.footprint || null) && (p.type !== 'OPAMP' || x.units.length === c.units.length));
   let f = '';
+  if (family.length > 1) f += selectRow('in-model', 'Part', family.map(x => [x.id, (x.mpn.startsWith('Model') || ['R', 'C', 'L', 'LED'].includes(x.type) ? x.name : x.mpn + ' — ' + x.name)]), c.id);
   if (p.type === 'R') {
-    f += fieldRow('in-value', 'Resistance (Ω)', fmtEng(p.value, '', 4).replace(' ', ''), `<button class="btn" id="in-snap" title="Snap to ${state.series}">${state.series}</button>`);
+    f += fieldRow('in-value', 'Resistance (Ω)', engIn(p.value), `<button class="btn" id="in-snap" title="Snap to ${state.series}">${state.series}</button>`);
     f += selectRow('in-tol', 'Tolerance', [[20, '±20%'], [10, '±10% (silver)'], [5, '±5% (gold)'], [2, '±2% (red)'], [1, '±1% (brown)'], [0.5, '±0.5% (green)'], [0.25, '±0.25% (blue)'], [0.1, '±0.1% (violet)']], p.tol);
     f += selectRow('in-prating', 'Power rating', POWER_RATINGS.map(w => [w, fmtEng(w, 'W')]), p.pRating);
     const bands = colorBands(p.value, p.tol);
     f += `<p class="small muted" style="margin:0">Bands: ${bands ? bands.map(b => b.n).join(', ') : '—'} · Code ${rkm(p.value)}${isInSeries(p.value, 'E24') || isInSeries(p.value, 'E96') ? '' : ' · <span style="color:var(--warn)">not a standard E-series value</span>'}</p>`;
   } else if (p.type === 'C') {
-    f += fieldRow('in-value', 'Capacitance (F)', fmtEng(p.value, '', 4).replace(' ', ''), `<button class="btn" id="in-snap">E12</button>`);
+    f += fieldRow('in-value', 'Capacitance (F)', engIn(p.value), `<button class="btn" id="in-snap">E12</button>`);
     f += selectRow('in-vrating', 'Voltage rating', [6.3, 10, 16, 25, 35, 50, 63, 100, 250, 400].map(v => [v, v + ' V']), p.vRating);
-    f += `<p class="small muted" style="margin:0">${p.value >= 1e-6 ? 'Drawn as an aluminium electrolytic; the stripe marks the − lead (second lead).' : 'Ceramic, marked ' + capCodeEncode(p.value) + '.'}</p>`;
+    f += `<p class="small muted" style="margin:0">${p.polarized ? `Polarized: first lead is +. ESR ${fmtEng(p.esr || 0, 'Ω')} is included in AC.` : 'Marked ' + capCodeEncode(p.value) + '.'}</p>`;
   } else if (p.type === 'L') {
-    f += fieldRow('in-value', 'Inductance (H)', fmtEng(p.value, '', 4).replace(' ', ''), `<button class="btn" id="in-snap">E12</button>`);
-    f += fieldRow('in-dcr', 'Winding resistance DCR (Ω)', fmtEng(p.dcr || 0, '', 4).replace(' ', ''));
-    f += fieldRow('in-irating', 'Rated current (A)', fmtEng(p.iRating, '', 3).replace(' ', ''));
+    f += fieldRow('in-value', 'Inductance (H)', engIn(p.value), `<button class="btn" id="in-snap">E12</button>`);
+    f += fieldRow('in-dcr', 'Winding resistance DCR (Ω)', engIn(p.dcr || 0));
+    f += fieldRow('in-irating', 'Rated current (A)', engIn(p.iRating, 3));
   } else if (p.type === 'LED') {
-    f += selectRow('in-color', 'Color', Object.entries(LED_TYPES).map(([k, t]) => [k, `${t.label} · Vf ${t.vf} V`]), p.color);
-    f += fieldRow('in-ifmax', 'Max forward current (A)', fmtEng(p.ifMax, '', 3).replace(' ', ''));
-    f += `<p class="small muted" style="margin:0">First lead is the anode (long leg). Modelled as Vf plus ${LED_TYPES[p.color].rs} Ω once forward biased.</p>`;
+    f = selectRow('in-color', 'Color', Object.entries(LED_TYPES).map(([k, t]) => [k, `${t.label} · Vf ${t.vf} V`]), p.color);
+    f += fieldRow('in-ifmax', 'Max forward current (A)', engIn(p.ifMax, 3));
+    f += `<p class="small muted" style="margin:0">First lead is the anode (long leg). Shockley diode model fitted to Vf at 20 mA.</p>`;
   } else if (p.type === 'VDC') {
-    f += fieldRow('in-value', 'Voltage (V)', fmtEng(p.value, '', 4).replace(' ', ''));
-    f += `<p class="small muted" style="margin:0">Red clip lead is +, black is −.</p>`;
+    f += fieldRow('in-value', 'Voltage (V)', engIn(p.value));
+    if ('iLimit' in p) f += fieldRow('in-ilimit', 'Current limit (A)', engIn(p.iLimit, 3));
+    if (p.rint > 0) f += `<p class="small muted" style="margin:0">Internal resistance ${fmtEng(p.rint, 'Ω')}, so the terminal voltage sags under load.</p>`;
+    f += `<p class="small muted" style="margin:0">Red lead is +, black is −.</p>`;
   } else if (p.type === 'VAC') {
-    f += fieldRow('in-value', 'Amplitude (V rms)', fmtEng(p.value, '', 4).replace(' ', ''));
+    f += fieldRow('in-value', 'Amplitude (V rms)', engIn(p.value));
     f += fieldRow('in-phase', 'Phase (°)', p.phase || 0);
-    f += `<p class="small muted" style="margin:0">Peak = ${fmtEng(p.value * Math.SQRT2, 'V')}. Frequency is set with the AC analysis control above the board.</p>`;
-  } else if (p.type === 'wire') {
-    f += `<label>Color<span class="inrow">${WIRE_COLORS.map(c => `<button class="btn" data-wc="${c}" style="background:${c};width:28px;height:24px;padding:0;${p.color === c ? 'outline:2px solid var(--ink);outline-offset:1px' : ''}" aria-label="wire color"></button>`).join('')}</span></label>`;
+    f += `<p class="small muted" style="margin:0">Peak = ${fmtEng(p.value * Math.SQRT2, 'V')}.${p.rint ? ' 50 Ω output impedance, like a real generator.' : ''} Frequency is set in the ribbon.</p>`;
+  } else if (p.type === 'POT') {
+    f += fieldRow('in-value', 'Track resistance (Ω)', engIn(p.value));
+    f += `<label for="in-pos">Wiper position <span class="mono">${Math.round((p.pos ?? 0.5) * 100)}%</span><input type="range" id="in-pos" min="0" max="100" value="${Math.round((p.pos ?? 0.5) * 100)}"></label>`;
+  } else if (p.type === 'SW') {
+    f += `<p class="small" style="margin:0">${p.closed ? 'Closed' : 'Open'}${p.momentary ? ' (momentary push button)' : ''}.</p><button class="btn sm" id="in-toggle">${p.momentary ? (p.closed ? 'Release' : 'Press') : 'Flip'}</button>`;
+  }
+  if (p.pins) {
+    f += `<div class="pinout" style="grid-column:1/-1">${c.pins.map((n, k) => `<span><b>${esc(n)}</b> ${esc(holeName(p.pins[k]))}</span>`).join('')}</div>`;
   }
   const r = result && result.ok && result.parts[p.id];
-  const where = p.type === 'GND' ? holeName(p.a) : `${holeName(p.a)} → ${holeName(p.b)}`;
-  el.innerHTML = `<div class="eyebrow">Inspector · ${esc(where)}</div><h2>${esc(p.name)} <span class="muted" style="font-weight:500">${d.label}</span><svg viewBox="0 -2 44 24" aria-label="${p.type === 'R' ? (state.sym === 'IEC' ? 'IEC 60617 symbol' : 'IEEE 315 symbol') : 'schematic symbol'}">${symbol(p.type === 'wire' ? 'wire' : p.type)}</svg></h2>
+  const where = p.pins ? `${holeName(p.pins[0])} → ${holeName(p.pins[p.pins.length - 1])}` : `${holeName(p.a)} → ${holeName(p.b)}`;
+  el.innerHTML = `<div class="eyebrow">Inspector · ${esc(where)}</div><h2>${esc(p.name)} <span class="muted" style="font-weight:500">${esc(c.mpn.startsWith('Model') || ['R', 'C', 'L'].includes(p.type) ? c.name : c.mpn)}</span>${symSvg(symbolKey(c))}</h2>
+    <p class="small muted" style="margin:2px 0 0">${esc(c.name)} · ${esc(c.pkg)} · ${esc(c.spec)}</p>
     <div class="form" style="margin-top:10px">${f}</div>
-    ${r ? `<dl class="res" style="margin-top:10px;grid-template-columns:auto 1fr auto 1fr"><dt>Across</dt><dd>${state.mode === 'DC' ? fmtEng(r.v[0], 'V') : fmtEng(cabs(r.v), 'V') + ' ∠' + fmtNum(cdeg(r.v), 1) + '°'}</dd><dt>Through</dt><dd>${state.mode === 'DC' ? fmtEng(r.i[0], 'A') : fmtEng(cabs(r.i), 'A') + ' ∠' + fmtNum(cdeg(r.i), 1) + '°'}</dd></dl>` : ''}
-    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm danger" id="in-del">Delete</button><button class="btn sm" id="in-done">Done</button></div>`;
+    ${r ? `<div class="rd-vals" style="margin-top:10px;grid-template-columns:repeat(${readingCells(p, r).length}, minmax(0,1fr))">${readingCells(p, r).map(([k, v]) => `<div><small>${k}</small>${v}</div>`).join('')}</div>` : ''}
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm danger" id="in-del">Delete</button>${p.pins && c.footprint === '3inline' ? '<button class="btn sm" id="in-rot">Turn around</button>' : !p.pins ? '<button class="btn sm" id="in-rot">Swap leads</button>' : ''}<button class="btn sm" id="in-done">Done</button></div>`;
 }
+
 function renderBode() {
   const panel = $('bodepanel');
   const el = $('bode');
@@ -834,7 +1111,7 @@ function renderBode() {
   if (pts) {
     const W = 520, H = 210, l = 40, rr = 36, t = 10, bt = 24;
     const fx = f => l + (Math.log10(f) / 6) * (W - l - rr);
-    let mx = Math.max(...pts.map(p => p.db)), mn = Math.min(...pts.map(p => p.db));
+    const mx = Math.max(...pts.map(p => p.db)), mn = Math.min(...pts.map(p => p.db));
     const top = Math.ceil((mx + 1) / 10) * 10, bot = Math.max(-120, Math.floor(Math.min(mn, top - 20) / 20) * 20);
     const fy = d => t + (top - d) / (top - bot) * (H - t - bt);
     const py = ph => t + (180 - ph) / 360 * (H - t - bt);
@@ -847,7 +1124,6 @@ function renderBode() {
     svg += `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + fx(p.f).toFixed(1) + ' ' + fy(Math.max(bot, p.db)).toFixed(1)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
     const fcur = Math.min(1e6, Math.max(1, state.freq));
     svg += `<line x1="${fx(fcur)}" y1="${t}" x2="${fx(fcur)}" y2="${H - bt}" stroke="var(--ink)" stroke-opacity="0.5" stroke-dasharray="2 3"/>`;
-    // −3 dB crossing relative to the passband maximum
     const peak = Math.max(...pts.map(p => p.db));
     let cross = null;
     for (let i = 1; i < pts.length; i++) {
@@ -867,6 +1143,7 @@ function renderBoardView() {
   $('mode-dc').setAttribute('aria-pressed', state.mode === 'DC');
   $('mode-ac').setAttribute('aria-pressed', state.mode === 'AC');
   $('freqwrap').hidden = state.mode !== 'AC';
+  $('sample').value = state.sample || '';
   save();
 }
 
@@ -881,26 +1158,38 @@ function nearestHole(evt) {
   for (const k of ALL_HOLES) { const { x, y } = holeXY(k); const d = Math.hypot(x - p.x, y - p.y); if (d < bd) { bd = d; best = k; } }
   return best;
 }
+const occupied = k => state.parts.some(p => leadsOf(p).includes(k));
 $('board').addEventListener('pointermove', e => {
   const h = nearestHole(e);
   if (h !== state.hover) { state.hover = h; renderOverlay(); renderStatus(); }
 });
 $('board').addEventListener('pointerleave', () => { state.hover = null; renderOverlay(); renderStatus(); });
 $('board').addEventListener('click', e => {
+  closeMenu();
   const partEl = e.target.closest('[data-part]');
   if (state.tool === 'select') {
-    state.selected = partEl ? partEl.dataset.part : null;
+    const p = partEl && state.parts.find(x => x.id === partEl.dataset.part);
+    if (p && p.type === 'SW') p.closed = !p.closed;
+    state.selected = p ? p.id : null;
     renderBoardView(); return;
   }
   const h = nearestHole(e); if (!h) return;
+  state.sample = '';
   if (state.tool === 'GND') {
     state.parts = state.parts.filter(p => p.type !== 'GND');
     const p = makePart('GND', h, null); state.parts.push(p); state.selected = p.id;
     renderBoardView(); return;
   }
+  const c = CATALOG_BY_ID[state.tool];
+  if (c && c.footprint) {
+    const holes = footprintHoles(c.footprint, c.footprint === 'dip8' ? 'f' + parseHole(h).c : h);
+    if (!holes) { flashStatus(`The ${c.mpn} does not fit there. ${c.footprint === 'dip8' ? 'It needs four free columns across the center channel.' : 'It needs three columns in the a–j area.'}`); return; }
+    if (holes.some(occupied)) flashStatus('Some of those holes already hold a lead. The part was still placed.');
+    const p = makePart(state.tool, holes); state.parts.push(p); state.selected = p.id;
+    renderBoardView(); return;
+  }
   if (!state.pending) { state.pending = h; renderOverlay(); renderStatus(); return; }
   if (h === state.pending) { state.pending = null; renderOverlay(); renderStatus(); return; }
-  const occupied = k => state.parts.some(p => p.a === k || p.b === k);
   if (occupied(h)) flashStatus('That hole already holds a lead. The part was still placed; real holes take one lead each.');
   const p = makePart(state.tool, state.pending, h);
   state.parts.push(p); state.pending = null; state.selected = p.id;
@@ -908,42 +1197,78 @@ $('board').addEventListener('click', e => {
 });
 let flashT = null;
 function flashStatus(msg) { clearTimeout(flashT); setTimeout(() => { $('status').innerHTML = esc(msg); }, 0); flashT = setTimeout(renderStatus, 3500); }
-$('palette').addEventListener('click', e => {
-  const b = e.target.closest('[data-tool]'); if (!b) return;
-  setTool(b.dataset.tool);
-});
 function setTool(t) { state.tool = t; state.pending = null; if (t !== 'select') state.selected = null; renderPalette(); renderBoardView(); }
+function closeMenu() { if (state.menu || state.query) { state.menu = null; state.query = ''; $('libsearch').value = ''; renderPalette(); renderLibrary(); } }
+$('palette').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) { closeMenu(); setTool(b.dataset.tool); } });
+$('libcats').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]'); if (!b) return;
+  state.query = ''; $('libsearch').value = '';
+  state.menu = state.menu === b.dataset.cat ? null : b.dataset.cat;
+  const rb = b.getBoundingClientRect(), rr = $('ribbon').getBoundingClientRect();
+  $('libpop').style.setProperty('--pop-left', Math.max(0, Math.min(rb.left - rr.left, rr.width - 520)) + 'px');
+  renderPalette(); renderLibrary();
+});
+$('libsearch').addEventListener('input', e => { state.query = e.target.value; state.menu = null; $('libpop').style.setProperty('--pop-left', '0px'); renderPalette(); renderLibrary(); });
+$('libsearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const first = libItemsFor()[0]; if (first) { closeMenu(); setTool(first.id); } }
+  if (e.key === 'Escape') { closeMenu(); e.target.blur(); }
+});
+$('libpop').addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b) { closeMenu(); setTool(b.dataset.pick); } });
+$('placing').addEventListener('click', e => { if (e.target.id === 'placing-x') setTool('select'); });
+// composedPath, not closest: the ribbon re-renders its buttons inside the click handler
+document.addEventListener('click', e => { if (!e.composedPath().some(n => n.id === 'ribbon')) closeMenu(); });
 document.addEventListener('keydown', e => {
   if (state.tab !== 'board') return;
   if (e.target.matches('input, textarea, select')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === 'Escape') { if (state.pending) { state.pending = null; renderOverlay(); renderStatus(); } else setTool('select'); return; }
+  if (e.key === 'Escape') { if (state.menu) closeMenu(); else if (state.pending) { state.pending = null; renderOverlay(); renderStatus(); } else setTool('select'); return; }
   if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected) { deleteSelected(); e.preventDefault(); return; }
-  const t = Object.entries(PART_DEFS).find(([, d]) => d.key === e.key.toLowerCase());
-  if (t) setTool(t[0]);
+  if (e.key === '/') { e.preventDefault(); $('libsearch').focus(); return; }
+  const k = e.key.toLowerCase();
+  const quick = Object.entries(QUICK_TOOLS).find(([, d]) => d.key === k);
+  if (quick) setTool(quick[0]);
+  else if (HOTKEYS[k]) setTool(HOTKEYS[k]);
 });
-function deleteSelected() { state.parts = state.parts.filter(p => p.id !== state.selected); state.selected = null; renderBoardView(); }
+function deleteSelected() { state.parts = state.parts.filter(p => p.id !== state.selected); state.selected = null; state.sample = ''; renderBoardView(); }
 
 $('inspector').addEventListener('change', e => {
   const p = state.parts.find(x => x.id === state.selected); if (!p) return;
   const id = e.target.id, v = e.target.value;
   const num = parseEng(v);
-  if (id === 'in-value') { if (num > 0 || (p.type === 'VDC' && isFinite(num))) p.value = num; else { flashStatus('Enter a number such as 4.7k, 100n or 2R2.'); } }
+  if (id === 'in-model') {
+    const c = CATALOG_BY_ID[v], keep = ['R', 'C', 'L'].includes(p.type) ? { value: p.value } : p.type === 'VDC' ? { value: p.value } : {};
+    for (const k of ['tol', 'pRating', 'vRating', 'esr', 'polarized', 'dielectric', 'dcr', 'iRating', 'rint', 'iLimit', 'ron', 'momentary', 'closed']) delete p[k];
+    Object.assign(p, JSON.parse(JSON.stringify(c.defaults || {})), keep, { model: c.id });
+  }
+  else if (id === 'in-value') { if (num > 0 || (p.type === 'VDC' && isFinite(num))) p.value = num; else flashStatus('Enter a number such as 4.7k, 100n or 2R2.'); }
   else if (id === 'in-tol') p.tol = +v;
   else if (id === 'in-prating') p.pRating = +v;
   else if (id === 'in-vrating') p.vRating = +v;
   else if (id === 'in-dcr') p.dcr = num >= 0 ? num : 0;
   else if (id === 'in-irating') { if (num > 0) p.iRating = num; }
-  else if (id === 'in-color') p.color = v;
+  else if (id === 'in-ilimit') { if (num > 0) p.iLimit = num; }
+  else if (id === 'in-color') { p.color = v; p.model = 'LED-' + v; }
   else if (id === 'in-ifmax') { if (num > 0) p.ifMax = num; }
   else if (id === 'in-phase') p.phase = isFinite(num) ? num : 0;
+  else if (id === 'in-pos') return;
+  state.sample = '';
   renderBoardView();
+});
+$('inspector').addEventListener('input', e => {
+  if (e.target.id !== 'in-pos') return;
+  const p = state.parts.find(x => x.id === state.selected); if (!p) return;
+  p.pos = +e.target.value / 100;
+  recompute(); renderParts(); renderVolt(); renderResults(); renderSummary(); renderNetlist(); save();
+  e.target.previousElementSibling.textContent = e.target.value + '%';
 });
 $('inspector').addEventListener('click', e => {
   const p = state.parts.find(x => x.id === state.selected); if (!p) return;
-  if (e.target.id === 'in-del') deleteSelected();
-  else if (e.target.id === 'in-done') { state.selected = null; renderBoardView(); }
-  else if (e.target.id === 'in-snap') { p.value = snap(p.value, p.type === 'R' ? state.series : 'E12'); renderBoardView(); }
+  const id = e.target.id;
+  if (id === 'in-del') deleteSelected();
+  else if (id === 'in-done') { state.selected = null; renderBoardView(); }
+  else if (id === 'in-snap') { p.value = snap(p.value, p.type === 'R' ? state.series : 'E12'); renderBoardView(); }
+  else if (id === 'in-toggle') { p.closed = !p.closed; renderBoardView(); }
+  else if (id === 'in-rot') { if (p.pins) p.pins = p.pins.slice().reverse(); else [p.a, p.b] = [p.b, p.a]; renderBoardView(); }
   else if (e.target.dataset.wc) { p.color = e.target.dataset.wc; renderBoardView(); }
 });
 $('results').addEventListener('click', e => { const tr = e.target.closest('[data-part]'); if (tr) { state.tool = 'select'; state.selected = tr.dataset.part; renderPalette(); renderBoardView(); } });
@@ -953,12 +1278,13 @@ $('mode-dc').addEventListener('click', () => { state.mode = 'DC'; renderBoardVie
 $('mode-ac').addEventListener('click', () => { state.mode = 'AC'; renderBoardView(); });
 $('freq').addEventListener('change', e => { const f = parseEng(e.target.value); if (f > 0) state.freq = f; e.target.value = fmtEng(state.freq, '').replace(' ', ''); renderBoardView(); });
 $('showv').addEventListener('change', e => { state.showV = e.target.checked; renderVolt(); save(); });
-$('btn-sample').addEventListener('click', () => { state.parts = sampleParts(); state.probe = 'L9'; state.selected = null; renderBoardView(); });
+$('sample').innerHTML = '<option value="">Samples…</option>' + Object.entries(SAMPLES).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('');
+$('sample').addEventListener('change', e => { if (!e.target.value) return; loadSample(e.target.value); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTool('select'); });
 let clearArmed = false, clearT = null;
 $('btn-clear').addEventListener('click', e => {
   if (!clearArmed) { clearArmed = true; e.target.textContent = 'Click again to clear'; clearT = setTimeout(() => { clearArmed = false; e.target.textContent = 'Clear board'; }, 3000); return; }
   clearTimeout(clearT); clearArmed = false; e.target.textContent = 'Clear board';
-  state.parts = []; state.selected = null; renderBoardView();
+  state.parts = []; state.selected = null; state.sample = ''; renderBoardView();
 });
 $('btn-copy').addEventListener('click', e => {
   const txt = $('netlist').textContent;
@@ -1189,7 +1515,8 @@ function renderRef() {
       <li><b>IEC 60617</b> and <b>IEEE 315</b> graphic symbols. Switch between the rectangular (IEC) and zigzag (IEEE) resistor with the Symbols control.</li>
       <li><b>EIA-96</b> (now in IEC 60062) for 1% SMD resistor markings.</li>
       <li><b>SPICE netlist syntax</b> as used by LTspice, so a board can be opened there for transient and parametric runs.</li>
-    </ul><p class="note" style="margin-top:10px">The solver is modified nodal analysis. LEDs use a piecewise model (Vf plus a small series resistance), so currents near the knee are approximate. Use LTspice when the diode's exact curve matters.</p></section>`;
+    </ul><p class="note" style="margin-top:10px">The solver is modified nodal analysis with Newton–Raphson for the nonlinear parts, falling back to source stepping and gmin stepping like SPICE does. Diodes and LEDs use the Shockley equation with series resistance, transistors a simplified Gummel–Poon (BJT) and square-law (MOSFET) model, op-amps a rail-limited gain stage with a single GBW pole, and regulators a reference with dropout and current limit. These match datasheet typicals; use LTspice with vendor models for temperature, transient and worst-case work.</p></section>
+    <section class="panel" style="grid-column:1/-1"><h2>Parts library</h2><p class="note" style="margin-bottom:8px">${CATALOG.length} parts. Ratings are the datasheet absolute maximums the readings check against.</p><div class="tablewrap"><table><thead><tr><th>Part</th><th>Description</th><th>Package</th><th>Pins (left to right / 1–8)</th><th>Key specs</th></tr></thead><tbody>${CATALOG.map(c => `<tr><td class="mono">${esc(c.mpn)}</td><td>${esc(c.name)}</td><td class="mono small">${esc(c.pkg)}</td><td class="mono small">${c.pins ? esc(c.pins.join(' ')) : '—'}</td><td class="small">${esc(c.spec)}</td></tr>`).join('')}</tbody></table></div></section>`;
 }
 
 /* ===================== tabs & settings ===================== */
