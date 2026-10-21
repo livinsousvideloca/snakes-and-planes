@@ -119,7 +119,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .insp .form select { padding: 4px 6px; max-width: 230px; }
 .insp .form .btn { padding: 4px 8px; }
 .insp .form input[type="range"] { width: 140px; }
-.insp .form > p, .insp .pinout { font-size: 12px; max-width: 300px; align-self: center; margin: 0; }
+.insp .form > p, .insp .pinout { font-size: 12px; max-width: 420px; align-self: center; margin: 0; }
 .insp-hint { align-self: center; font-size: 12.5px; color: var(--muted); max-width: 520px; }
 .insp-actions .insp-hint { max-width: 230px; text-align: right; }
 .insp-hint b { color: var(--accent-2); font-weight: 500; }
@@ -128,6 +128,12 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .about-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .about-head h2 { margin-bottom: 8px; }
 .about-head h2::after { display: none; }
+.quick { display: flex; flex-wrap: wrap; gap: 3px; align-self: flex-end; max-width: 380px; }
+.qv { border: 1px solid var(--line); background: rgba(10, 7, 4, 0.4); color: var(--muted); border-radius: 2px; padding: 3px 6px; font-family: var(--f-mono); font-size: 11.5px; cursor: pointer; }
+.qv:hover { border-color: var(--accent); color: var(--ink); }
+.qv.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); }
+.detail-toggle { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; font-family: var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.insp-title small { max-width: 300px; }
 .insp-actions { display: flex; gap: 6px; margin-left: auto; align-self: center; flex-wrap: wrap; }
 .tool .lbl { display: none; } /* icons only; the title gives the name and hotkey */
 .libbtn { display: flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 13px; color: var(--ink); }
@@ -608,7 +614,24 @@ const PART_TYPES = [
   ['OPAMP', 'Op-amp'], ['REG', 'Regulator']
 ];
 const TYPE_NOUN = { R: 'resistor', C: 'capacitor', L: 'inductor', POT: 'potentiometer', SW: 'switch', VDC: 'DC supply', VAC: 'AC source', D: 'diode', LED: 'LED', BJT: 'transistor', MOS: 'MOSFET', OPAMP: 'op-amp', REG: 'regulator' };
-const firstOfType = t => CATALOG.find(c => c.type === t);
+// Learning view: what each part does, how to put it in, a short list of plain choices and common values.
+// The full catalog (families, tolerances, ratings) shows only when "Real-part details" is on.
+const PLAIN = {
+  R: { what: 'Limits current. Ohm\'s law: V = I × R.', place: 'Click two holes; either way round works.', field: 'Resistance', unit: 'Ω', quick: [100, 220, 330, 470, 1e3, 2.2e3, 4.7e3, 10e3, 47e3, 100e3], picks: [['R-CF', 'Resistor']] },
+  C: { what: 'Stores charge. Blocks DC and passes AC, more easily at high frequency.', place: 'Click two holes. Electrolytics (1 µF and up) have a + lead: click it first.', field: 'Capacitance', unit: 'F', quick: [1e-9, 10e-9, 100e-9, 1e-6, 10e-6, 100e-6], picks: [['C-X7R', 'Ceramic (under 1 µF)'], ['C-ELEC', 'Electrolytic (1 µF and up, has + and −)']] },
+  L: { what: 'Stores energy in a magnetic field. Passes DC, resists fast changes.', place: 'Click two holes; either way round works.', field: 'Inductance', unit: 'H', quick: [100e-6, 1e-3, 10e-3, 100e-3], picks: [['L-IDEAL', 'Inductor']] },
+  POT: { what: 'A resistor with a sliding middle contact (the wiper): a voltage divider you can turn.', place: 'Click once: its three pins drop into three columns, wiper in the middle.', field: 'Total resistance', unit: 'Ω', quick: [1e3, 10e3, 100e3], picks: [['POT-3386', 'Potentiometer']] },
+  SW: { what: 'Connects or breaks a path. Click it on the board to flip it.', place: 'Click two holes.', picks: [['SW-SLIDE', 'Slide switch (stays where you put it)'], ['SW-TACT', 'Push button (on only while pressed)']] },
+  VDC: { what: 'Gives a steady voltage, like a battery.', place: 'Click the + (red) hole first, then − (black). The rails are handy: + to the red line, − to the blue.', field: 'Voltage', unit: 'V', quick: [1.5, 3.3, 5, 9, 12], picks: [['V-BENCH', 'Bench power supply'], ['V-9V', '9 V battery'], ['V-IDEAL', 'Ideal source (textbook)']] },
+  VAC: { what: 'Gives a sine wave. Switch the analysis to AC to see what it does.', place: 'Click the + hole first, then −.', field: 'Amplitude (rms)', unit: 'V', quick: [0.1, 0.5, 1, 5], picks: [['VAC-IDEAL', 'Ideal AC source (textbook)'], ['VAC-GEN', 'Function generator (50 Ω output)']] },
+  D: { what: 'Lets current flow one way only, from anode to cathode, dropping about 0.7 V.', place: 'Click the anode first; the band on the body marks the cathode.', picks: [['D-1N4148', 'Small diode'], ['D-1N4001', 'Power diode (1 A)'], ['D-1N4733A', 'Zener, 5.1 V (used backwards, it holds 5.1 V)']] },
+  LED: { what: 'A diode that lights up. Always put a resistor in series to keep it near 5–20 mA.', place: 'Click the anode (long leg) first, then the cathode.', picks: [] },
+  BJT: { what: 'A small base current controls a collector current about 100–300 times bigger.', place: 'Click once: E, B and C drop into three columns, left to right.', picks: [['Q-2N3904', 'NPN transistor (switches to ground)'], ['Q-2N3906', 'PNP transistor (switches from +)']] },
+  MOS: { what: 'The gate voltage turns it on; almost no current flows into the gate.', place: 'Click once: S, G and D drop into three columns, left to right.', picks: [['M-2N7000', 'Small MOSFET (up to 0.2 A)'], ['M-IRLZ44N', 'Power MOSFET']] },
+  OPAMP: { what: 'Amplifies the difference between its + and − inputs. Feedback resistors set the gain. It needs power on V+ and V−.', place: 'Click a column: the chip straddles the center gap, pin 1 bottom-left.', picks: [['U-LM358', 'Op-amp for a single supply (0 V and +)'], ['U-TL072', 'Op-amp for a ± supply']] },
+  REG: { what: 'Turns a higher, wobbly voltage into a steady lower one.', place: 'Click once: IN, GND and OUT (or ADJ, OUT, IN) drop into three columns.', picks: [['U-L7805', '5 V output'], ['U-L7812', '12 V output'], ['U-LM1117-33', '3.3 V output'], ['U-LM317', 'Adjustable output (set by two resistors)']] }
+};
+const firstOfType = t => (PLAIN[t] && PLAIN[t].picks[0] && CATALOG_BY_ID[PLAIN[t].picks[0][0]]) || CATALOG.find(c => c.type === t);
 const HOTKEYS = { r: 'R-CF', c: 'C-X7R', l: 'L-AX', d: 'LED-red', b: 'V-BENCH', a: 'VAC-GEN', q: 'Q-2N3904', u: 'U-LM358' };
 const NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', BJT: 'Q', MOS: 'M', OPAMP: 'U', REG: 'U' };
 const WIRE_COLORS = ['#d23b3b', '#2b63c4', '#e3a514', '#2a9455', '#8a4fc2', '#e07128', '#2b2f33'];
@@ -649,14 +672,14 @@ function loadSample(key) {
 const saved = store.get('bb-bench-v2') || store.get('bb-bench-v1');
 const state = {
   tab: 'board', series: 'E24', sym: 'IEC', tool: 'select', pending: null, hover: null, selected: null,
-  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: '', draft: null, drafts: {}, about: null
+  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: '', draft: null, drafts: {}, about: null, detail: false
 };
 if (saved && Array.isArray(saved.parts)) {
-  Object.assign(state, { about: saved.about || null, series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
+  Object.assign(state, { detail: !!saved.detail, about: saved.about || null, series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
   state.parts = saved.parts.filter(p => p.type === 'wire' || p.type === 'GND' || ELEMENT_TYPES.includes(p.type));
   uid = Math.max(1, ...state.parts.map(p => +String(p.id).slice(1) + 1 || 1));
 } else loadSample('basics');
-function save() { store.set('bb-bench-v2', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV, sample: state.sample, about: state.about }); }
+function save() { store.set('bb-bench-v2', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV, sample: state.sample, about: state.about, detail: state.detail }); }
 
 /* ---------- board geometry ---------- */
 const P = 18, X0 = 40;
@@ -916,7 +939,7 @@ function renderPalette() {
   $('palette').innerHTML = Object.entries(QUICK_TOOLS).map(([t, d]) =>
     `<button class="tool" data-tool="${t}" aria-pressed="${state.tool === t}" title="${d.label} (${d.key.toUpperCase()})">${symSvg(t)}<span class="lbl">${d.label}</span></button>`).join('');
   const curType = cur ? cur.type : (state.parts.find(x => x.id === state.selected) || {}).type;
-  $('ptypes').innerHTML = PART_TYPES.map(t => t ? `<button class="ptype" data-ptype="${t[0]}" aria-pressed="${curType === t[0]}" title="${t[1]}">${symSvg(symbolKey(firstOfType(t[0])))}${t[1]}</button>` : '<div class="ribbon-sep" aria-hidden="true"></div>').join('');
+  $('ptypes').innerHTML = PART_TYPES.map(t => t ? `<button class="ptype" data-ptype="${t[0]}" aria-pressed="${curType === t[0]}" title="${t[1]}: ${PLAIN[t[0]].what}">${symSvg(symbolKey(firstOfType(t[0])))}${t[1]}</button>` : '<div class="ribbon-sep" aria-hidden="true"></div>').join('');
 }
 function libItemsFor() {
   const q = state.query.trim().toLowerCase();
@@ -1129,7 +1152,7 @@ function renderInspector() {
   if (!p) {
     el.innerHTML = state.tool === 'wire' ? hint('<b>Jumper:</b> click the hole for one end, then the other. Esc cancels.')
       : state.tool === 'GND' ? hint('<b>Ground:</b> click a hole to make that strip 0 V.')
-      : hint('<b>Inspector.</b> Pick a part type above to set its values here before you place it, or click a part on the board to edit it. Columns a–e and f–j are connected strips; chips straddle the center channel.');
+      : hint('<b>Start here:</b> pick a part above (hover a button to see what it does). You set its value here, then click the board to place it. Holes in the same short column (a–e, or f–j) are connected; the long red and blue lines are the power rails.');
     return;
   }
   const isDraft = p === state.draft;
@@ -1141,6 +1164,7 @@ function renderInspector() {
     return;
   }
   const c = catalogOf(p);
+  if (!state.detail) { renderSimpleInspector(el, p, c, isDraft); return; }
   const family = isDraft ? CATALOG.filter(x => x.type === p.type)
     : CATALOG.filter(x => x.type === p.type && (x.footprint || null) === (c.footprint || null) && (p.type !== 'OPAMP' || x.units.length === c.units.length));
   let f = '';
@@ -1186,7 +1210,45 @@ function renderInspector() {
   el.innerHTML = `<div class="insp-title">${symSvg(symbolKey(c))}<span><b>${esc(title)}</b><small>${esc(sub)}</small></span></div>
     <div class="form">${f}</div>
     ${actions(isDraft ? hint(`<b>Then place it:</b> ${place.toLowerCase()}`) + '<button class="btn sm" id="in-del">Cancel</button>'
-      : `<button class="btn sm danger" id="in-del">Delete</button>${p.pins && c.footprint === '3inline' ? '<button class="btn sm" id="in-rot">Turn around</button>' : !p.pins ? '<button class="btn sm" id="in-rot">Swap leads</button>' : ''}<button class="btn sm" id="in-done">Done</button>`)}`;
+      : `<button class="btn sm danger" id="in-del">Delete</button>${p.pins && c.footprint === '3inline' ? '<button class="btn sm" id="in-rot">Turn around</button>' : !p.pins ? '<button class="btn sm" id="in-rot">Swap leads</button>' : ''}<button class="btn sm" id="in-done">Done</button>`)}
+    ${detailToggle()}`;
+}
+const detailToggle = () => `<label class="detail-toggle" title="Show every real part, tolerance and rating"><input type="checkbox" id="in-detail" ${state.detail ? 'checked' : ''}> Real-part details</label>`;
+// learning view: big capacitors are electrolytics and small ones ceramics, as on a real bench
+function matchCapType(p) {
+  if (state.detail || p.type !== 'C') return;
+  const want = p.value >= 1e-6 ? 'C-ELEC' : 'C-X7R';
+  if (p.model === want) return;
+  const v = p.value;
+  for (const k of ['vRating', 'esr', 'polarized', 'dielectric']) delete p[k];
+  Object.assign(p, JSON.parse(JSON.stringify(CATALOG_BY_ID[want].defaults)), { value: v, model: want });
+  if (p === state.draft) state.tool = want;
+}
+const quickLabel = (v, u) => fmtEng(v, u, 3).replace(' ', '');
+function renderSimpleInspector(el, p, c, isDraft) {
+  const P = PLAIN[p.type];
+  const hint = t => `<span class="insp-hint">${t}</span>`, actions = btns => `<div class="insp-actions">${btns}</div>`;
+  let f = '';
+  const picks = P.picks.slice();
+  if (picks.length && !picks.some(([id]) => id === c.id)) picks.push([c.id, c.mpn.startsWith('Model') ? c.name : `${c.name} (${c.mpn})`]);
+  if (picks.length > 1) f += selectRow('in-model', 'Type', picks, c.id);
+  if (p.type === 'LED') f += selectRow('in-color', 'Color', Object.entries(LED_TYPES).map(([k, t]) => [k, t.label.split(' (')[0]]), p.color);
+  if (P.field) {
+    f += fieldRow('in-value', `${P.field} (${P.unit})`, engIn(p.value));
+    f += `<div class="quick" role="group" aria-label="Common values">${P.quick.map(v => `<button class="qv${Math.abs(v - p.value) < v * 1e-6 ? ' on' : ''}" data-qv="${v}">${quickLabel(v, P.unit)}</button>`).join('')}</div>`;
+  }
+  if (p.type === 'POT') f += `<label for="in-pos">Wiper <span class="mono">${Math.round((p.pos ?? 0.5) * 100)}%</span><input type="range" id="in-pos" min="0" max="100" value="${Math.round((p.pos ?? 0.5) * 100)}"></label>`;
+  if (p.type === 'SW') f += `<label>State<button class="btn" id="in-toggle">${p.closed ? 'On (closed)' : 'Off (open)'}</button></label>`;
+  const PIN_WORD = { E: 'emitter', B: 'base', C: 'collector', S: 'source', G: 'gate', D: 'drain', IN: 'in', OUT: 'out', GND: 'ground', ADJ: 'adjust', W: 'wiper', 1: 'end', 3: 'end' };
+  if (c.footprint === '3inline') f += `<p class="pinout"><span class="muted">Pins, left to right:</span> ${c.pins.map((n, k) => `<span><b>${esc(n)}</b> ${esc(PIN_WORD[n] || '')}${p.pins ? ' (' + esc(holeName(p.pins[k])) + ')' : ''}</span>`).join('')}</p>`;
+  else if (c.footprint) f += `<p class="pinout"><span class="muted">Pins:</span> ${c.pins.map((n, k) => `<span><b>${k + 1}</b> ${esc(n)}</span>`).join('')}</p>`;
+  const noun = TYPE_NOUN[p.type];
+  const title = isDraft ? noun[0].toUpperCase() + noun.slice(1) : `${p.name} · ${noun}`;
+  const howto = isDraft ? (state.pending ? 'Now click the second hole.' : c.footprint === '3inline' ? 'Click the hole for the left pin; the other two go in the next columns.' : P.place) : 'Edit it here, or click Done.';
+  el.innerHTML = `<div class="insp-title">${symSvg(symbolKey(c))}<span><b>${esc(title)}</b><small>${esc(P.what)}</small></span></div>
+    <div class="form">${f}</div>
+    ${actions((isDraft ? hint(`<b>To place:</b> ${esc(howto)}`) + '<button class="btn sm" id="in-del">Cancel</button>'
+      : `<button class="btn sm danger" id="in-del">Delete</button>${!p.pins ? '<button class="btn sm" id="in-rot">Flip around</button>' : ''}<button class="btn sm" id="in-done">Done</button>`) + detailToggle())}`;
 }
 
 function renderBode() {
@@ -1342,17 +1404,18 @@ document.addEventListener('keydown', e => {
 function deleteSelected() { state.parts = state.parts.filter(p => p.id !== state.selected); state.selected = null; state.sample = ''; renderBoardView(); }
 
 $('inspector').addEventListener('change', e => {
+  if (e.target.id === 'in-detail') { state.detail = e.target.checked; renderInspector(); save(); return; }
   const p = inspTarget(); if (!p) return;
   const isDraft = p === state.draft;
   const id = e.target.id, v = e.target.value;
   const num = parseEng(v);
   if (id === 'in-model') {
-    const c = CATALOG_BY_ID[v], keep = ['R', 'C', 'L'].includes(p.type) ? { value: p.value } : p.type === 'VDC' ? { value: p.value } : {};
+    const c = CATALOG_BY_ID[v], keep = ['R', 'C', 'L'].includes(p.type) ? { value: p.value } : {};
     for (const k of ['tol', 'pRating', 'vRating', 'esr', 'polarized', 'dielectric', 'dcr', 'iRating', 'rint', 'iLimit', 'ron', 'momentary', 'closed']) delete p[k];
     Object.assign(p, JSON.parse(JSON.stringify(c.defaults || {})), keep, { model: c.id });
     if (isDraft) { state.tool = c.id; renderPalette(); }
   }
-  else if (id === 'in-value') { if (num > 0 || (p.type === 'VDC' && isFinite(num))) p.value = num; else flashStatus('Enter a number such as 4.7k, 100n or 2R2.'); }
+  else if (id === 'in-value') { if (num > 0 || (p.type === 'VDC' && isFinite(num))) { p.value = num; matchCapType(p); } else flashStatus('Enter a number such as 4.7k, 100n or 2R2.'); }
   else if (id === 'in-tol') p.tol = +v;
   else if (id === 'in-prating') p.pRating = +v;
   else if (id === 'in-vrating') p.vRating = +v;
@@ -1378,6 +1441,13 @@ $('inspector').addEventListener('input', e => {
 $('inspector').addEventListener('click', e => {
   const p = inspTarget(); if (!p) return;
   const id = e.target.id;
+  if (e.target.dataset.qv) {
+    p.value = +e.target.dataset.qv;
+    // in the learning view, big capacitors are electrolytics and small ones ceramics, as on a real bench
+    matchCapType(p);
+    if (p !== state.draft) state.sample = '';
+    renderBoardView(); return;
+  }
   if (p === state.draft && (id === 'in-del' || id === 'in-done')) setTool('select');
   else if (id === 'in-del') deleteSelected();
   else if (id === 'in-done') { state.selected = null; renderBoardView(); }
