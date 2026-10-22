@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poiret+One&family=Josefin+Sans:wght@400;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: lab-bench workspace. Header with global part settings, three views (breadboard, calculators, reference). */
+/* Layout: lab-bench workspace. Header, two views (breadboard, calculators). */
 :root {
   /* dark, warm Art Deco palette: ebony, brass and ivory, with a soft amber glow */
   --bg: #0e0a07;
@@ -69,8 +69,6 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark { width: 38px; height: 38px; flex: none; }
 .brand p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-.settings { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
-.settings label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 select, input[type="text"], textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
 input[type="text"] { font-family: var(--f-mono); font-size: 14px; }
 textarea { font-family: var(--f-mono); font-size: 13px; width: 100%; resize: vertical; }
@@ -103,7 +101,6 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .ribbon-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 8px; position: relative; }
 .boardbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .boardbar .grow { flex: 1; }
-#libsearch { align-self: center; }
 .ptype { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 54px; padding: 4px 4px 3px; border: 1px solid transparent; border-radius: 3px; background: none; cursor: pointer; color: var(--muted); font-family: var(--f-display); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 .ptype svg { width: 30px; height: 18px; stroke: var(--accent-2); fill: none; stroke-width: 1.6; }
 .ptype:hover { background: var(--accent-soft); color: var(--ink); }
@@ -132,7 +129,6 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .qv { border: 1px solid var(--line); background: rgba(10, 7, 4, 0.4); color: var(--muted); border-radius: 2px; padding: 3px 6px; font-family: var(--f-mono); font-size: 11.5px; cursor: pointer; }
 .qv:hover { border-color: var(--accent); color: var(--ink); }
 .qv.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); }
-.detail-toggle { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; font-family: var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
 .insp-title small { max-width: 300px; }
 .insp-actions { display: flex; gap: 6px; margin-left: auto; align-self: center; flex-wrap: wrap; }
 .tool .lbl { display: none; } /* icons only; the title gives the name and hotkey */
@@ -143,19 +139,9 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .libbtn[aria-expanded="true"] { background: linear-gradient(180deg, var(--accent-2), var(--accent)); color: var(--on-accent); border-color: var(--accent); }
 .libbtn[aria-expanded="true"] svg { stroke: var(--on-accent); }
 #sample { width: 120px; }
-#libsearch { width: 104px; padding: 5px 8px; }
 .placing-chip { font-family: var(--f-body); margin-right: 6px; vertical-align: middle; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; padding: 2px 4px 2px 6px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 999px; white-space: nowrap; }
 .placing-chip svg { width: 26px; height: 14px; stroke: var(--ink); fill: none; stroke-width: 1.7; }
 .placing-chip button { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--muted); padding: 0 4px; }
-.libpop { position: absolute; top: calc(100% + 4px); left: var(--pop-left, 0px); width: min(520px, calc(100vw - 32px)); max-height: min(420px, 60vh); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 4px; z-index: 20; }
-.libpop[hidden] { display: none; }
-.libhead { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px 4px; }
-.libitem { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "sym name pkg" "sym spec spec"; gap: 0 8px; width: 100%; text-align: left; padding: 6px 8px; border: none; background: none; border-radius: 6px; cursor: pointer; color: var(--ink); align-items: center; }
-.libitem:hover, .libitem[aria-pressed="true"] { background: var(--panel-2); }
-.libitem svg { grid-area: sym; width: 32px; height: 18px; stroke: var(--ink); fill: none; stroke-width: 1.6; }
-.li-name { grid-area: name; font-size: 13.5px; }
-.li-spec { grid-area: spec; font-size: 12px; color: var(--muted); }
-.li-pkg { grid-area: pkg; font-size: 11px; font-family: var(--f-mono); color: var(--muted); }
 .pinout { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
 .pinout b { color: var(--ink); font-weight: 600; }
 .btn.sm { padding: 4px 10px; font-size: 13px; }
@@ -203,10 +189,8 @@ tr.sel td { background: var(--accent-soft); }
 tbody tr { cursor: pointer; }
 .errbox { border-left: 3px solid var(--bad); background: var(--bad-soft); padding: 8px 12px; border-radius: 4px; font-size: 14px; }
 .warnlist { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--warn); }
-.lower { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart text { font-family: var(--f-mono); font-size: 10px; fill: var(--muted); }
-pre.netlist { margin: 0; background: var(--panel-2); border-radius: 6px; padding: 10px; font-family: var(--f-mono); font-size: 12.5px; overflow-x: auto; white-space: pre; }
 
 /* calculators */
 .calcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; align-items: start; }
@@ -221,6 +205,7 @@ dl.res { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14p
 dl.res dt { color: var(--muted); }
 dl.res dd { margin: 0; font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
+.work { margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--panel-2); font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6; overflow-wrap: anywhere; }
 .rvis { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .rvis svg { width: 150px; height: 34px; flex: none; }
 .bandnames { font-size: 12.5px; color: var(--muted); }
@@ -229,20 +214,16 @@ dl.res dd.big { font-size: 17px; color: var(--accent); font-weight: 500; }
 .calc .chart svg text { font-size: 9.5px; }
 
 /* reference */
-.refgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
-.etable td { font-family: var(--f-mono); font-size: 12.5px; padding: 3px 6px; text-align: right; }
 .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; border: 1px solid var(--line); margin-right: 6px; }
-.std { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; max-width: 70ch; }
 
 @media (max-width: 1080px) {
   .bench { grid-template-columns: minmax(0, 1fr); }
   .readings-frame { position: static; max-height: none; overflow: visible; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 }
 @media (max-width: 640px) {
-  .lower { grid-template-columns: minmax(0, 1fr); }
   .ribbon { position: relative; }
   .tool span.lbl { display: none; }
-  .calcgrid, .refgrid { grid-template-columns: minmax(0, 1fr); }
+  .calcgrid { grid-template-columns: minmax(0, 1fr); }
   h1 { font-size: 26px; }
 }
 
@@ -266,14 +247,13 @@ h2, h3 { font-family: var(--f-display); font-weight: 600; text-transform: upperc
 .tab { font-family: var(--f-display); font-size: 14px; text-transform: uppercase; letter-spacing: 0.18em; border-radius: 0; padding: 8px 18px; border: 1px solid transparent; }
 .tab:hover { color: var(--ink); }
 .tab[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-2); box-shadow: inset 0 0 0 3px var(--bg), inset 0 0 0 4px rgba(217, 168, 78, 0.5), 0 0 18px rgba(217, 168, 78, 0.15); }
-.panel, .ribbon, .boardscroll, .libpop {
+.panel, .ribbon, .boardscroll {
   background: linear-gradient(var(--panel), var(--panel)) padding-box,
               linear-gradient(135deg, var(--accent-2), rgba(217, 168, 78, 0.12) 30%, rgba(217, 168, 78, 0.12) 70%, var(--accent)) border-box;
   border: 1px solid transparent; border-radius: 4px;
   -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(240, 207, 138, 0.08);
 }
-.libpop { background: linear-gradient(var(--panel-solid), var(--panel-solid)) padding-box, linear-gradient(135deg, var(--accent-2), rgba(217, 168, 78, 0.2) 40%, var(--accent)) border-box; }
 /* stepped brass corners */
 .panel { position: relative; }
 .panel::before, .panel::after { content: ""; position: absolute; width: 16px; height: 16px; pointer-events: none; opacity: 0.85; }
@@ -300,12 +280,10 @@ option { background: var(--panel-solid); color: var(--ink); }
 .seg { border-color: var(--accent); border-radius: 3px; }
 .seg button { background: transparent; color: var(--muted); }
 .tool { color: var(--muted); border-radius: 3px; }
-.tool svg, .libitem svg, .placing-chip svg { stroke: var(--accent-2); }
+.tool svg, .placing-chip svg { stroke: var(--accent-2); }
 .tool:hover { background: var(--accent-soft); color: var(--ink); }
 .tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow); }
 .placing-chip { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); box-shadow: 0 0 14px rgba(217, 168, 78, 0.25); border-radius: 3px; }
-.libitem:hover, .libitem[aria-pressed="true"] { background: var(--accent-soft); }
-.li-name b { color: var(--accent-2); }
 .boardscroll { padding: 12px; }
 #board { filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5)); }
 .statusbar b { color: var(--accent-2); }
@@ -318,7 +296,6 @@ option { background: var(--panel-solid); color: var(--ink); }
 .chip { border-radius: 2px; font-family: var(--f-display); letter-spacing: 0.04em; border: 1px solid currentColor; border-color: color-mix(in srgb, currentColor 35%, transparent); }
 .chip::before { box-shadow: 0 0 8px currentColor; }
 .chip.off { background: rgba(255, 255, 255, 0.03); }
-pre.netlist { background: rgba(5, 3, 2, 0.6); border: 1px solid var(--line); border-radius: 3px; color: #e9d9b8; }
 td, th { border-bottom-color: var(--line); }
 dl.res { border-top: 1px solid var(--line); }
 dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78, 0.35); }
@@ -329,8 +306,8 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
 .symbol-preview svg { stroke: var(--accent-2); }
 :focus-visible { outline-color: var(--accent-2); }
 ::selection { background: rgba(217, 168, 78, 0.35); }
-.readings-frame::-webkit-scrollbar, .libpop::-webkit-scrollbar { width: 8px; }
-.readings-frame::-webkit-scrollbar-thumb, .libpop::-webkit-scrollbar-thumb { background: rgba(217, 168, 78, 0.3); border-radius: 4px; }
+.readings-frame::-webkit-scrollbar { width: 8px; }
+.readings-frame::-webkit-scrollbar-thumb { background: rgba(217, 168, 78, 0.3); border-radius: 4px; }
 @media (max-width: 640px) { h1 { font-size: 30px; } .tabs { justify-content: flex-start; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
@@ -350,33 +327,14 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
       </svg>
       <div>
         <h1>Breadboard Bench</h1>
-        <p>Circuit calculators and a breadboard solver that work in real, purchasable parts.</p>
+        <p>ELT 1206 study bench: build a circuit, read the meters, check the math.</p>
       </div>
-    </div>
-    <div class="settings">
-      <label for="series">Snap to
-        <select id="series">
-          <option value="E6">E6 · ±20%</option>
-          <option value="E12">E12 · ±10%</option>
-          <option value="E24" selected>E24 · ±5%</option>
-          <option value="E48">E48 · ±2%</option>
-          <option value="E96">E96 · ±1%</option>
-          <option value="E192">E192 · ±0.5%</option>
-        </select>
-      </label>
-      <label for="symstyle">Symbols
-        <select id="symstyle">
-          <option value="IEC">IEC 60617</option>
-          <option value="IEEE">IEEE 315</option>
-        </select>
-      </label>
     </div>
   </header>
 
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-board" data-tab="board" aria-selected="true">Breadboard</button>
     <button class="tab" role="tab" id="tab-calc" data-tab="calc" aria-selected="false">Calculators</button>
-    <button class="tab" role="tab" id="tab-ref" data-tab="ref" aria-selected="false">Parts reference</button>
   </nav>
 
   <!-- ================= BREADBOARD ================= -->
@@ -386,9 +344,6 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
       <div class="ribbon-group" id="palette" aria-label="Tools"></div>
       <div class="ribbon-sep" aria-hidden="true"></div>
       <div class="ribbon-group" id="ptypes" aria-label="Part types"></div>
-      <span class="grow"></span>
-      <input type="search" id="libsearch" placeholder="Part no…" title="Search by part number or name (press /)" aria-label="Search parts" autocomplete="off">
-      <div id="libpop" class="libpop" hidden></div>
      </div>
      <div class="insp" id="inspector" aria-label="Inspector" aria-live="polite"></div>
     </div>
@@ -404,6 +359,7 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           <label class="small muted" title="Show node voltages on the board"><input type="checkbox" id="showv" checked> Show voltages</label>
           <span class="grow"></span>
           <select id="sample" aria-label="Sample circuits"></select>
+          <button class="btn sm" id="btn-copy" title="Copy this board as a SPICE netlist to paste into LTspice">Copy for LTspice</button>
           <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
         </div>
         <div class="boardscroll">
@@ -415,20 +371,6 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           </svg>
         </div>
         <div class="statusbar" id="status">&nbsp;</div>
-        <div class="lower">
-          <div class="panel chart" id="bodepanel">
-            <h2>Frequency response</h2>
-            <div id="bode"></div>
-          </div>
-          <div class="panel">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
-              <h2>SPICE netlist</h2>
-              <button class="btn sm" id="btn-copy">Copy for LTspice</button>
-            </div>
-            <pre class="netlist" id="netlist"></pre>
-            <p class="note" style="margin-top:8px">Paste into a new LTspice schematic's netlist (File → New, then View → SPICE Netlist) or save as a .cir file and open it.</p>
-          </div>
-        </div>
       </div>
       <aside class="readings-frame" aria-label="Readings">
         <div class="panel about" id="about" hidden></div>
@@ -445,54 +387,43 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
     <div class="calcgrid" id="calcgrid">
 
       <section class="panel calc" id="c-ohm">
-        <header><h3>Ohm's law and power</h3><p>V = I·R · P = V·I</p></header>
+        <header><h3>Ohm's law and power</h3><p>V = I·R · P = V·I = I²R = V²/R</p></header>
         <div class="fields">
           <label>Solve for<select id="ohm-solve"><option value="R">Resistance</option><option value="I">Current</option><option value="V">Voltage</option></select></label>
-          <label>Voltage (V)<input type="text" id="ohm-v" value="9"></label>
-          <label>Current (A)<input type="text" id="ohm-i" value="20m"></label>
-          <label>Resistance (Ω)<input type="text" id="ohm-r" value="470"></label>
+          <label>Voltage (V)<input type="text" id="ohm-v" value="12"></label>
+          <label>Current (A)<input type="text" id="ohm-i" value="2m"></label>
+          <label>Resistance (Ω)<input type="text" id="ohm-r" value="6k"></label>
         </div>
         <div id="ohm-out"></div>
       </section>
 
       <section class="panel calc" id="c-res">
-        <header><h3>Resistor part finder</h3><p>Nearest stocked value, IEC 60062 markings</p></header>
+        <header><h3>Resistor color code</h3><p>digit · digit · multiplier · tolerance</p></header>
         <div class="fields">
-          <label>Target resistance<input type="text" id="res-v" value="3.3k"></label>
+          <label>Resistance (Ω)<input type="text" id="res-v" value="4.7k"></label>
+          <label>Tolerance<select id="res-tol"><option value="5">±5% (gold)</option><option value="10">±10% (silver)</option><option value="1">±1% (brown, 5 bands)</option></select></label>
         </div>
         <div id="res-out"></div>
       </section>
 
-      <section class="panel calc" id="c-div">
-        <header><h3>Voltage divider</h3><p>Vout = Vin · R2 / (R1 + R2)</p></header>
-        <div class="fields">
-          <label>Vin (V)<input type="text" id="div-vin" value="12"></label>
-          <label>Target Vout (V)<input type="text" id="div-vout" value="3.3"></label>
-          <label>Total R about (Ω)<input type="text" id="div-rt" value="10k"></label>
-          <label>Load R (blank = none)<input type="text" id="div-rl" value=""></label>
-        </div>
-        <div id="div-out"></div>
-      </section>
-
-      <section class="panel calc" id="c-led">
-        <header><h3>LED series resistor</h3><p>R = (Vs − n·Vf) / If, rounded up</p></header>
-        <div class="fields">
-          <label>Supply Vs (V)<input type="text" id="led-vs" value="5"></label>
-          <label>LED<select id="led-color"></select></label>
-          <label>Vf each (V)<input type="text" id="led-vf" value="2.0"></label>
-          <label>If target (A)<input type="text" id="led-if" value="15m"></label>
-          <label>LEDs in series<input type="text" id="led-n" value="1"></label>
-        </div>
-        <div id="led-out"></div>
-      </section>
-
       <section class="panel calc" id="c-sp">
-        <header><h3>Series and parallel</h3><p>Combine any list of R, C or L</p></header>
+        <header><h3>Series and parallel</h3><p>Series: RT = R1 + R2 + … · Parallel: 1/RT = 1/R1 + 1/R2 + …</p></header>
         <div class="fields">
           <label>Part type<select id="sp-type"><option value="R">Resistors (Ω)</option><option value="C">Capacitors (F)</option><option value="L">Inductors (H)</option></select></label>
-          <label style="grid-column:1/-1">Values, separated by commas<textarea id="sp-list" rows="2">1k, 2.2k, 4.7k</textarea></label>
+          <label style="grid-column:1/-1">Values, separated by commas<textarea id="sp-list" rows="2">3k, 6k</textarea></label>
         </div>
         <div id="sp-out"></div>
+      </section>
+
+      <section class="panel calc" id="c-div">
+        <header><h3>Voltage divider and loading</h3><p>Vout = VS · R2 / (R1 + R2)</p></header>
+        <div class="fields">
+          <label>VS (V)<input type="text" id="div-vs" value="12"></label>
+          <label>R1, top (Ω)<input type="text" id="div-r1" value="2k"></label>
+          <label>R2, bottom (Ω)<input type="text" id="div-r2" value="4k"></label>
+          <label>Load RL (blank = none)<input type="text" id="div-rl" value="4k"></label>
+        </div>
+        <div id="div-out"></div>
       </section>
 
       <section class="panel calc" id="c-tau">
@@ -507,6 +438,27 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
         <div id="tau-out"></div>
       </section>
 
+      <section class="panel calc" id="c-sine">
+        <header><h3>Sine wave</h3><p>Vpp = 2Vp · Vrms = 0.707·Vp · f = 1/T · ω = 2πf</p></header>
+        <div class="fields">
+          <label>You know<select id="sine-kind"><option value="p">Peak Vp</option><option value="pp">Peak-to-peak Vpp</option><option value="rms">RMS Vrms</option></select></label>
+          <label>Value (V)<input type="text" id="sine-v" value="10"></label>
+          <label>And<select id="sine-tkind"><option value="f">Frequency f</option><option value="T">Period T</option></select></label>
+          <label id="sine-tl">Value (Hz)<input type="text" id="sine-t" value="60"></label>
+        </div>
+        <div id="sine-out"></div>
+      </section>
+
+      <section class="panel calc" id="c-ph">
+        <header><h3>Phasor converter</h3><p>a = M·cos θ · b = M·sin θ · M = √(a² + b²) · θ = tan⁻¹(b/a)</p></header>
+        <div class="fields">
+          <label style="grid-column:1/-1">Convert<select id="ph-dir"><option value="r2p">Rectangular a + jb → polar M∠θ</option><option value="p2r">Polar M∠θ → rectangular a + jb</option></select></label>
+          <label id="ph-l1">Real part a<input type="text" id="ph-1" value="-3"></label>
+          <label id="ph-l2">Imaginary part b<input type="text" id="ph-2" value="4"></label>
+        </div>
+        <div id="ph-out"></div>
+      </section>
+
       <section class="panel calc" id="c-z">
         <header><h3>Reactance and impedance</h3><p>XL = 2πfL · XC = 1/(2πfC) · Z = R + jX</p></header>
         <div class="fields">
@@ -519,32 +471,9 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
         <div id="z-out"></div>
       </section>
 
-      <section class="panel calc" id="c-filt">
-        <header><h3>First-order filter</h3><p>fc = 1/(2πRC) or R/(2πL)</p></header>
-        <div class="fields">
-          <label>Type<select id="f-type"><option value="RC-LP">RC low-pass</option><option value="RC-HP">RC high-pass</option><option value="RL-LP">RL low-pass</option><option value="RL-HP">RL high-pass</option></select></label>
-          <label>Target fc (Hz)<input type="text" id="f-fc" value="1k"></label>
-          <label id="f-xl">C you have (F)<input type="text" id="f-x" value="100n"></label>
-          <label>Check at f (Hz)<input type="text" id="f-test" value="5k"></label>
-        </div>
-        <div id="f-out"></div>
-      </section>
-
-      <section class="panel calc" id="c-cap">
-        <header><h3>Capacitor marking</h3><p>3-digit pF code, IEC 60062</p></header>
-        <div class="fields">
-          <label>Code (e.g. 104) or value (e.g. 4.7n)<input type="text" id="cap-in" value="104"></label>
-        </div>
-        <div id="cap-out"></div>
-      </section>
-
     </div>
   </section>
 
-  <!-- ================= REFERENCE ================= -->
-  <section id="view-ref" role="tabpanel" hidden>
-    <div class="refgrid" id="refgrid"></div>
-  </section>
 </div>
 
 <script src="engine.js"></script>
@@ -557,32 +486,21 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-/* ---------- schematic symbols (IEC 60617 / IEEE 315) ---------- */
+/* ---------- schematic symbols (IEEE 315, as in the course slides) ---------- */
 const INK = 'style="color:var(--ink)"';
-function symbol(key, style) {
-  const s = style || state.sym;
+function symbol(key) {
   const diode = '<path d="M2 11 H15 M29 11 H42"/><path d="M15 4 V18 L28 11 Z" fill="currentColor" ' + INK + ' stroke-linejoin="round"/>';
   switch (key) {
     case 'select': return '<path d="M16 3 L16 18 L20 14 L23 20 L25 19 L22 13 L27 13 Z" fill="currentColor" stroke="none" ' + INK + '/>';
     case 'wire': return '<path d="M4 15 C 14 2, 30 2, 40 15" stroke-width="2.4"/><circle cx="4" cy="15" r="2" fill="currentColor"/><circle cx="40" cy="15" r="2" fill="currentColor"/>';
-    case 'R': return s === 'IEEE'
-      ? '<path d="M2 11 H10 L12 6 L16 16 L20 6 L24 16 L28 6 L32 16 L34 11 H42"/>'
-      : '<path d="M2 11 H11 M33 11 H42"/><rect x="11" y="6" width="22" height="10"/>';
-    case 'POT': return (s === 'IEEE'
-      ? '<path d="M2 14 H10 L12 9 L16 19 L20 9 L24 19 L28 9 L32 19 L34 14 H42"/>'
-      : '<path d="M2 14 H11 M33 14 H42"/><rect x="11" y="9" width="22" height="10"/>') + '<path d="M22 0 V8 M19 5 L22 8 L25 5"/>';
+    case 'R': return '<path d="M2 11 H10 L12 6 L16 16 L20 6 L24 16 L28 6 L32 16 L34 11 H42"/>';
+    case 'POT': return '<path d="M2 14 H10 L12 9 L16 19 L20 9 L24 19 L28 9 L32 19 L34 14 H42"/><path d="M22 0 V8 M19 5 L22 8 L25 5"/>';
     case 'C': return '<path d="M2 11 H19 M25 11 H42 M19 3 V19 M25 3 V19"/>';
     case 'CE': return '<path d="M2 11 H19 M27 11 H42 M19 3 V19"/><path d="M28 3 Q24 11 28 19"/><path d="M13 4 h4 M15 2 v4" stroke-width="1.2"/>';
     case 'L': return '<path d="M2 13 H8 a3.5 3.5 0 0 1 7 0 a3.5 3.5 0 0 1 7 0 a3.5 3.5 0 0 1 7 0 a3.5 3.5 0 0 1 7 0 H42"/>';
     case 'D': return diode + '<path d="M29 4 V18"/>';
-    case 'ZD': return diode + '<path d="M26 3 L29 4 V18 L32 19"/>';
-    case 'SD': return diode + '<path d="M26 6 V4 H29 V18 H32 V16"/>';
     case 'LED': return diode + '<path d="M29 4 V18"/><path d="M24 3 L29 -2 M28 5 L33 0" stroke-width="1.2"/><path d="M29 -2 l-3 0 M29 -2 l0 3 M33 0 l-3 0 M33 0 l0 3" stroke-width="1.2"/>';
-    case 'NPN': case 'PNP': return '<circle cx="24" cy="11" r="10"/><path d="M4 11 H19 M19 4 V18 M19 8 L29 2 M19 14 L29 20"/>' +
-      (key === 'NPN' ? '<path d="M24 17 L29 20 L26 15" fill="currentColor" ' + INK + '/>' : '<path d="M22 13 L19 14 L22 17" fill="currentColor" ' + INK + '/>');
-    case 'NMOS': return '<path d="M4 15 H14 M14 6 V16 M18 4 V8 M18 10 V13 M18 15 V19 M18 6 H28 V1 M18 17 H28 V22 M18 11.5 H28 V17"/><path d="M19 11.5 L23 9.5 V13.5 Z" fill="currentColor" ' + INK + '/>';
     case 'OPAMP': return '<path d="M12 1 V21 L34 11 Z"/><path d="M2 6 H12 M2 16 H12 M34 11 H42"/><path d="M14 6 h3 M14 16 h3 M15.5 14.5 v3" stroke-width="1.2"/>';
-    case 'REG': return '<rect x="12" y="3" width="20" height="14"/><path d="M2 8 H12 M32 8 H42 M22 17 V22"/><text x="22" y="13" font-size="6.5" text-anchor="middle" fill="currentColor" stroke="none" ' + INK + '>REG</text>';
     case 'SW': return '<path d="M2 14 H12 M32 14 H42 M12 14 L30 5"/><circle cx="12" cy="14" r="1.6" fill="currentColor"/><circle cx="32" cy="14" r="1.6"/>';
     case 'PB': return '<path d="M2 16 H12 M32 16 H42 M10 11 H34 M22 11 V3 M18 3 H26"/><circle cx="12" cy="16" r="1.6"/><circle cx="32" cy="16" r="1.6"/>';
     case 'VDC': return '<path d="M2 11 H17 M27 11 H42 M17 3 V19 M21 7 V15 M23 3 V19 M27 7 V15" /><text x="12" y="6" font-size="7" fill="currentColor" stroke="none" ' + INK + '>+</text>';
@@ -593,14 +511,9 @@ function symbol(key, style) {
 }
 function symbolKey(c) {
   if (!c) return 'R';
-  switch (c.type) {
-    case 'C': return c.defaults && c.defaults.polarized ? 'CE' : 'C';
-    case 'D': return c.zener ? 'ZD' : /Schottky/.test(c.name) ? 'SD' : 'D';
-    case 'BJT': return c.model.pol > 0 ? 'NPN' : 'PNP';
-    case 'MOS': return 'NMOS';
-    case 'SW': return c.defaults && c.defaults.momentary ? 'PB' : 'SW';
-    default: return c.type;
-  }
+  if (c.type === 'C') return c.defaults && c.defaults.polarized ? 'CE' : 'C';
+  if (c.type === 'SW') return c.defaults && c.defaults.momentary ? 'PB' : 'SW';
+  return c.type;
 }
 const symSvg = (key, cls = '') => `<svg class="${cls}" viewBox="0 -3 44 26" aria-hidden="true">${symbol(key)}</svg>`;
 
@@ -610,12 +523,10 @@ const QUICK_TOOLS = { select: { label: 'Select', key: 'v' }, wire: { label: 'Jum
 const PART_TYPES = [
   ['R', 'Resistor'], ['C', 'Capacitor'], ['L', 'Inductor'], ['POT', 'Pot'], ['SW', 'Switch'], null,
   ['VDC', 'DC supply'], ['VAC', 'AC source'], null,
-  ['D', 'Diode'], ['LED', 'LED'], ['BJT', 'Transistor'], ['MOS', 'MOSFET'], null,
-  ['OPAMP', 'Op-amp'], ['REG', 'Regulator']
+  ['D', 'Diode'], ['LED', 'LED'], ['OPAMP', 'Op-amp']
 ];
-const TYPE_NOUN = { R: 'resistor', C: 'capacitor', L: 'inductor', POT: 'potentiometer', SW: 'switch', VDC: 'DC supply', VAC: 'AC source', D: 'diode', LED: 'LED', BJT: 'transistor', MOS: 'MOSFET', OPAMP: 'op-amp', REG: 'regulator' };
-// Learning view: what each part does, how to put it in, a short list of plain choices and common values.
-// The full catalog (families, tolerances, ratings) shows only when "Real-part details" is on.
+const TYPE_NOUN = { R: 'resistor', C: 'capacitor', L: 'inductor', POT: 'potentiometer', SW: 'switch', VDC: 'DC supply', VAC: 'AC source', D: 'diode', LED: 'LED', OPAMP: 'op-amp' };
+// What each part does, how to put it in, a short list of plain choices and common values.
 const PLAIN = {
   R: { what: 'Limits current. Ohm\'s law: V = I × R.', place: 'Click two holes; either way round works.', field: 'Resistance', unit: 'Ω', quick: [100, 220, 330, 470, 1e3, 2.2e3, 4.7e3, 10e3, 47e3, 100e3], picks: [['R-CF', 'Resistor']] },
   C: { what: 'Stores charge. Blocks DC and passes AC, more easily at high frequency.', place: 'Click two holes. Electrolytics (1 µF and up) have a + lead: click it first.', field: 'Capacitance', unit: 'F', quick: [1e-9, 10e-9, 100e-9, 1e-6, 10e-6, 100e-6], picks: [['C-X7R', 'Ceramic (under 1 µF)'], ['C-ELEC', 'Electrolytic (1 µF and up, has + and −)']] },
@@ -624,18 +535,14 @@ const PLAIN = {
   SW: { what: 'Connects or breaks a path. Click it on the board to flip it.', place: 'Click two holes.', picks: [['SW-SLIDE', 'Slide switch (stays where you put it)'], ['SW-TACT', 'Push button (on only while pressed)']] },
   VDC: { what: 'Gives a steady voltage, like a battery.', place: 'Click the + (red) hole first, then − (black). The rails are handy: + to the red line, − to the blue.', field: 'Voltage', unit: 'V', quick: [1.5, 3.3, 5, 9, 12], picks: [['V-BENCH', 'Bench power supply'], ['V-9V', '9 V battery'], ['V-IDEAL', 'Ideal source (textbook)']] },
   VAC: { what: 'Gives a sine wave. Switch the analysis to AC to see what it does.', place: 'Click the + hole first, then −.', field: 'Amplitude (rms)', unit: 'V', quick: [0.1, 0.5, 1, 5], picks: [['VAC-IDEAL', 'Ideal AC source (textbook)'], ['VAC-GEN', 'Function generator (50 Ω output)']] },
-  D: { what: 'Lets current flow one way only, from anode to cathode, dropping about 0.7 V.', place: 'Click the anode first; the band on the body marks the cathode.', picks: [['D-1N4148', 'Small diode'], ['D-1N4001', 'Power diode (1 A)'], ['D-1N4733A', 'Zener, 5.1 V (used backwards, it holds 5.1 V)']] },
+  D: { what: 'Lets current flow one way only, from anode to cathode, dropping about 0.7 V.', place: 'Click the anode first; the band on the body marks the cathode.', picks: [['D-1N4148', 'Small diode'], ['D-1N4001', 'Power diode (1 A)']] },
   LED: { what: 'A diode that lights up. Always put a resistor in series to keep it near 5–20 mA.', place: 'Click the anode (long leg) first, then the cathode.', picks: [] },
-  BJT: { what: 'A small base current controls a collector current about 100–300 times bigger.', place: 'Click once: E, B and C drop into three columns, left to right.', picks: [['Q-2N3904', 'NPN transistor (switches to ground)'], ['Q-2N3906', 'PNP transistor (switches from +)']] },
-  MOS: { what: 'The gate voltage turns it on; almost no current flows into the gate.', place: 'Click once: S, G and D drop into three columns, left to right.', picks: [['M-2N7000', 'Small MOSFET (up to 0.2 A)'], ['M-IRLZ44N', 'Power MOSFET']] },
-  OPAMP: { what: 'Amplifies the difference between its + and − inputs. Feedback resistors set the gain. It needs power on V+ and V−.', place: 'Click a column: the chip straddles the center gap, pin 1 bottom-left.', picks: [['U-LM358', 'Op-amp for a single supply (0 V and +)'], ['U-TL072', 'Op-amp for a ± supply']] },
-  REG: { what: 'Turns a higher, wobbly voltage into a steady lower one.', place: 'Click once: IN, GND and OUT (or ADJ, OUT, IN) drop into three columns.', picks: [['U-L7805', '5 V output'], ['U-L7812', '12 V output'], ['U-LM1117-33', '3.3 V output'], ['U-LM317', 'Adjustable output (set by two resistors)']] }
+  OPAMP: { what: 'Amplifies the difference between its + and − inputs. Feedback resistors set the gain. It needs power on V+ (pin 8) and V− (pin 4).', place: 'Click a column: the chip straddles the center gap, pin 1 bottom-left.', picks: [['U-LM1458', 'LM1458 dual op-amp (class part, ±12 V)'], ['U-LM741', 'LM741 single op-amp (±12 V)'], ['U-LM358', 'LM358 dual op-amp (single supply, 0 V and +)']] }
 };
 const firstOfType = t => (PLAIN[t] && PLAIN[t].picks[0] && CATALOG_BY_ID[PLAIN[t].picks[0][0]]) || CATALOG.find(c => c.type === t);
-const HOTKEYS = { r: 'R-CF', c: 'C-X7R', l: 'L-AX', d: 'LED-red', b: 'V-BENCH', a: 'VAC-GEN', q: 'Q-2N3904', u: 'U-LM358' };
-const NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', BJT: 'Q', MOS: 'M', OPAMP: 'U', REG: 'U' };
+const HOTKEYS = { r: 'R-CF', c: 'C-X7R', l: 'L-IDEAL', d: 'LED-red', b: 'V-BENCH', a: 'VAC-GEN', u: 'U-LM1458' };
+const NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', OPAMP: 'U' };
 const WIRE_COLORS = ['#d23b3b', '#2b63c4', '#e3a514', '#2a9455', '#8a4fc2', '#e07128', '#2b2f33'];
-function toolLabel(t) { return QUICK_TOOLS[t] ? QUICK_TOOLS[t].label : CATALOG_BY_ID[t] ? (CATALOG_BY_ID[t].mpn.startsWith('Model') || CATALOG_BY_ID[t].type === 'R' || CATALOG_BY_ID[t].type === 'C' || CATALOG_BY_ID[t].type === 'L' ? CATALOG_BY_ID[t].name : CATALOG_BY_ID[t].mpn + ' ' + CATALOG_BY_ID[t].name.toLowerCase()) : t; }
 function draftProps() {
   const d = state.draft; if (!d) return {};
   const o = JSON.parse(JSON.stringify(d));
@@ -665,21 +572,24 @@ function loadSample(key) {
   const s = SAMPLE_CIRCUITS[key] || SAMPLE_CIRCUITS.basics;
   state.parts = sampleParts(key);
   uid = state.parts.length + 1;
-  state.mode = s.mode; state.freq = s.freq || state.freq; state.probe = s.probe; state.selected = null; state.sample = key; state.about = key;
+  state.mode = s.mode; state.freq = s.freq || state.freq; state.selected = null; state.sample = key; state.about = key;
 }
 
 /* ---------- state ---------- */
-const saved = store.get('bb-bench-v2') || store.get('bb-bench-v1');
+const saved = store.get('bb-bench-v3') || store.get('bb-bench-v2');
 const state = {
-  tab: 'board', series: 'E24', sym: 'IEC', tool: 'select', pending: null, hover: null, selected: null,
-  parts: [], mode: 'DC', freq: 1000, probe: null, showV: true, sample: 'basics', menu: null, query: '', draft: null, drafts: {}, about: null, detail: false
+  tab: 'board', tool: 'select', pending: null, hover: null, selected: null,
+  parts: [], mode: 'DC', freq: 1000, showV: true, sample: 'basics', draft: null, drafts: {}, about: null
 };
+// boards saved by earlier versions may hold parts that are no longer in the library
+const known = p => p.type === 'wire' || p.type === 'GND' || (ELEMENT_TYPES.includes(p.type) && (!p.model || CATALOG_BY_ID[p.model]));
 if (saved && Array.isArray(saved.parts)) {
-  Object.assign(state, { detail: !!saved.detail, about: saved.about || null, series: saved.series || 'E24', sym: saved.sym || 'IEC', mode: saved.mode || 'DC', freq: saved.freq || 1000, probe: saved.probe || null, showV: saved.showV !== false, sample: saved.sample || 'basics' });
-  state.parts = saved.parts.filter(p => p.type === 'wire' || p.type === 'GND' || ELEMENT_TYPES.includes(p.type));
+  Object.assign(state, { about: saved.about || null, mode: saved.mode || 'DC', freq: saved.freq || 1000, showV: saved.showV !== false, sample: saved.sample || 'basics' });
+  state.parts = saved.parts.filter(known);
+  if (state.parts.length < saved.parts.length) state.sample = '';
   uid = Math.max(1, ...state.parts.map(p => +String(p.id).slice(1) + 1 || 1));
 } else loadSample('basics');
-function save() { store.set('bb-bench-v2', { parts: state.parts, series: state.series, sym: state.sym, mode: state.mode, freq: state.freq, probe: state.probe, showV: state.showV, sample: state.sample, about: state.about, detail: state.detail }); }
+function save() { store.set('bb-bench-v3', { parts: state.parts, mode: state.mode, freq: state.freq, showV: state.showV, sample: state.sample, about: state.about }); }
 
 /* ---------- board geometry ---------- */
 const P = 18, X0 = 40;
@@ -719,11 +629,10 @@ function bandsSVG(bands, x, w, h, y) {
 function nameTag(x, y, name) {
   return `<text x="${x}" y="${y}" font-size="7.5" text-anchor="middle" ${MONO} fill="#2b2f33" font-weight="500" paint-order="stroke" stroke="var(--board)" stroke-width="2.5">${esc(name)}</text>`;
 }
-/* parts with a footprint: TO-92, TO-220, trimmer, DIP-8 */
+/* parts with a footprint: potentiometer, DIP-8 */
 function footprintSVG(p, cat, r, sel) {
   const pts = p.pins.map(holeXY);
   const legs = pts.map(q => `<circle cx="${q.x}" cy="${q.y}" r="2.3" fill="#b9c0c4" stroke="#5d6468" stroke-width="0.6"/>`).join('');
-  const short = cat.mpn.replace(/^(Bourns |LM|PN)/, m => m === 'LM' ? 'LM' : '').replace(/T(-[\d.]+)?$/, '$1');
   let body = '', box;
   if (cat.footprint === 'dip8') {
     const x0 = pts[0].x - 10, x1 = pts[3].x + 10, y0 = ROW_Y.e - 8, y1 = ROW_Y.f + 8;
@@ -738,17 +647,6 @@ function footprintSVG(p, cat, r, sel) {
     body = `<rect x="${cx - 17}" y="${cy - 14}" width="34" height="27" rx="2" fill="#2f5fa8"/>
       <circle cx="${cx}" cy="${cy - 1}" r="9" fill="#f0efe8"/>
       <g transform="translate(${cx} ${cy - 1}) rotate(${ang})"><rect x="-1.4" y="-8" width="2.8" height="16" fill="#6c6f72"/><rect x="-1.4" y="-8" width="2.8" height="4" fill="#d23b3b"/></g>`;
-  } else if (/TO-220/.test(cat.pkg)) {
-    const x0 = pts[0].x - 9, x1 = pts[2].x + 9, y = pts[0].y;
-    box = [x0, y - 30, x1, y + 4];
-    body = `<rect x="${x0 + 2}" y="${y - 30}" width="${x1 - x0 - 4}" height="12" rx="1" fill="#b8bec2"/><circle cx="${(x0 + x1) / 2}" cy="${y - 24}" r="3" fill="var(--board)"/>
-      <rect x="${x0}" y="${y - 19}" width="${x1 - x0}" height="16" rx="1.5" fill="#1f2326"/>
-      <text x="${(x0 + x1) / 2}" y="${y - 8}" font-size="7" text-anchor="middle" ${MONO} fill="#e9eaeb">${esc(short)}</text>`;
-  } else { // TO-92
-    const x0 = pts[0].x - 8, x1 = pts[2].x + 8, y = pts[0].y;
-    box = [x0, y - 16, x1, y + 3];
-    body = `<path d="M${x0} ${y - 2} V${y - 9} Q${(x0 + x1) / 2} ${y - 22} ${x1} ${y - 9} V${y - 2} Z" fill="#1f2326"/>
-      <text x="${(x0 + x1) / 2}" y="${y - 6}" font-size="6.5" text-anchor="middle" ${MONO} fill="#e9eaeb">${esc(short.replace(/^2N/, ''))}</text>`;
   }
   const pinLabels = state.selected === p.id ? pts.map((q, k) => `<text x="${q.x}" y="${cat.footprint === 'dip8' ? (k < 4 ? q.y + 12 : q.y - 8) : q.y + 11}" font-size="6.5" text-anchor="middle" ${MONO} fill="var(--signal)" paint-order="stroke" stroke="var(--board)" stroke-width="2">${esc(cat.pins[k])}</text>`).join('') : '';
   const halo = sel ? `<rect x="${box[0] - 4}" y="${box[1] - 4}" width="${box[2] - box[0] + 8}" height="${box[3] - box[1] + 8}" rx="5" fill="var(--signal)" fill-opacity="0.18" stroke="var(--signal)" stroke-width="1.2"/>` : '';
@@ -791,26 +689,18 @@ function partSVG(p, r) {
   const bl = Math.max(8, Math.min(28, len - 6));
   let body = '';
   if (p.type === 'R') {
-    const big = p.pRating >= 1;
-    const fill = p.pRating >= 5 ? '#f1f0ea' : big ? '#6f8fb5' : p.tol <= 2 ? '#8fb3dc' : '#e2c597';
-    const h = p.pRating >= 5 ? 12 : big ? 11 : 9.6;
-    body = `<rect x="${-bl / 2}" y="${-h / 2}" width="${bl}" height="${h}" rx="${p.pRating >= 5 ? 1 : 4}" fill="${fill}" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` +
-      (p.pRating >= 5 ? `<text x="0" y="2.5" font-size="5.5" text-anchor="middle" ${MONO} fill="#333">${esc(rkm(p.value))}</text>` : bandsSVG(colorBands(p.value, p.tol), -bl / 2, bl, h, -h / 2));
+    body = `<rect x="${-bl / 2}" y="-4.8" width="${bl}" height="9.6" rx="4" fill="#e2c597" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` + bandsSVG(colorBands(p.value, p.tol), -bl / 2, bl, 9.6, -4.8);
   } else if (p.type === 'C') {
     if (p.polarized || (!p.model && p.value >= 1e-6)) {
       body = `<rect x="${-bl / 2.4}" y="-6.5" width="${bl / 1.2}" height="13" rx="2.5" fill="#24406e"/><rect x="${bl / 2.4 - 5}" y="-6.5" width="4" height="13" fill="#c7d3e6"/><text x="${bl / 2.4 - 3}" y="2.4" font-size="6" text-anchor="middle" fill="#24406e" font-family="sans-serif">−</text>`;
-    } else if (p.dielectric === 'film') {
-      body = `<rect x="${-bl / 2.6}" y="-6" width="${bl / 1.3}" height="12" rx="1.5" fill="#c9372c"/><text x="0" y="2.2" font-size="5.5" text-anchor="middle" ${MONO} fill="#fbe9e7">${capCodeEncode(p.value)}</text>`;
     } else {
-      const col = p.dielectric === 'C0G' ? '#c98f3a' : '#d9822b';
+      const col = '#d9822b';
       body = `<ellipse cx="0" cy="0" rx="${Math.min(9, bl / 2)}" ry="7" fill="${col}" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/><text x="0" y="2.4" font-size="6" text-anchor="middle" fill="#3b2410" ${MONO}>${capCodeEncode(p.value)}</text>`;
     }
   } else if (p.type === 'L') {
-    body = p.model === 'L-PWR'
-      ? `<rect x="${-bl / 2.6}" y="-7" width="${bl / 1.3}" height="14" rx="3" fill="#33393d"/><circle cx="0" cy="0" r="4" fill="#b87333"/>`
-      : `<rect x="${-bl / 2}" y="-5.5" width="${bl}" height="11" rx="5" fill="#3f7a4b" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` + bandsSVG(colorBands(p.value / 1e-6, 10), -bl / 2, bl, 11, -5.5);
+    body = `<rect x="${-bl / 2}" y="-5.5" width="${bl}" height="11" rx="5" fill="#3f7a4b" stroke="rgba(0,0,0,.25)" stroke-width="0.6"/>` + bandsSVG(colorBands(p.value / 1e-6, 10), -bl / 2, bl, 11, -5.5);
   } else if (p.type === 'D') {
-    const glass = cat.body === 'glass' || cat.body === 'zener';
+    const glass = cat.body === 'glass';
     body = `<rect x="${-bl / 2.6}" y="-4" width="${bl / 1.3}" height="8" rx="3" fill="${glass ? '#e0893a' : '#26292c'}" fill-opacity="${glass ? 0.85 : 1}" stroke="rgba(0,0,0,.3)" stroke-width="0.5"/>
       <rect x="${bl / 2.6 - 4}" y="-4" width="2.6" height="8" fill="${glass ? '#1b1b1b' : '#c9cdd1'}"/>`;
   } else if (p.type === 'LED') {
@@ -824,8 +714,8 @@ function partSVG(p, r) {
     if (p.momentary) body = `<rect x="-8" y="-8" width="16" height="16" rx="1.5" fill="#2b2f33"/><circle cx="0" cy="0" r="${p.closed ? 4 : 5}" fill="${p.closed ? '#9b2c24' : '#d23b3b'}"/>`;
     else body = `<rect x="-11" y="-5" width="22" height="10" rx="1.5" fill="#2b2f33"/><rect x="${p.closed ? 1 : -9}" y="-3.5" width="8" height="7" rx="1" fill="#e9eaeb"/>`;
   } else if (p.type === 'VDC') {
-    const lbl = p.model === 'V-9V' ? '9V' : p.model === 'V-CR2032' ? 'CR2032' : esc(fmtEng(p.value, 'V', 3).replace(' ', ''));
-    const fill = p.model === 'V-BENCH' ? '#2b3135' : p.model === 'V-USB' ? '#2c4f80' : p.model === 'V-IDEAL' ? '#565c60' : '#7a5a1e';
+    const lbl = p.model === 'V-9V' ? '9V' : esc(fmtEng(p.value, 'V', 3).replace(' ', ''));
+    const fill = p.model === 'V-BENCH' ? '#2b3135' : p.model === 'V-IDEAL' ? '#565c60' : '#7a5a1e';
     body = `<rect x="-17" y="-9" width="34" height="18" rx="3" fill="${fill}"/><text x="0" y="3.4" font-size="${lbl.length > 5 ? 7 : 9}" text-anchor="middle" fill="#f2f2f2" ${MONO}>${lbl}</text>`;
   } else if (p.type === 'VAC') {
     body = `<circle cx="0" cy="0" r="10" fill="${p.rint > 0 ? '#2c4f80' : '#2b3135'}"/><path d="M-6 0 c2 -6 4 -6 6 0 s4 6 6 0" stroke="#f2f2f2" stroke-width="1.4" fill="none"/>`;
@@ -842,7 +732,7 @@ function partSVG(p, r) {
 let result = null;
 function recompute() { result = analyze(state.parts, { mode: state.mode, freq: state.freq }); }
 function renderParts() {
-  const order = { wire: 0, GND: 1, R: 2, C: 2, L: 2, D: 2, SW: 2, LED: 3, POT: 3, BJT: 3, MOS: 3, REG: 3, OPAMP: 3, VAC: 4, VDC: 4 };
+  const order = { wire: 0, GND: 1, R: 2, C: 2, L: 2, D: 2, SW: 2, LED: 3, POT: 3, OPAMP: 3, VAC: 4, VDC: 4 };
   const sorted = [...state.parts].sort((a, b) => (order[a.type] ?? 2) - (order[b.type] ?? 2));
   const defs = `<defs><filter id="glow" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="3"/></filter></defs>`;
   $('bb-parts').innerHTML = defs + sorted.map(p => partSVG(p, result && result.ok && result.parts[p.id])).join('');
@@ -933,7 +823,7 @@ function renderStatus() {
   } else el.innerHTML = 'Hover a hole to see which holes are connected and the voltage there. Click a part to edit it; click a switch to flip it.';
 }
 
-/* ---------- ribbon: quick tools, library menus, search ---------- */
+/* ---------- ribbon: quick tools and part types ---------- */
 function renderPalette() {
   const cur = CATALOG_BY_ID[state.tool];
   $('palette').innerHTML = Object.entries(QUICK_TOOLS).map(([t, d]) =>
@@ -941,40 +831,10 @@ function renderPalette() {
   const curType = cur ? cur.type : (state.parts.find(x => x.id === state.selected) || {}).type;
   $('ptypes').innerHTML = PART_TYPES.map(t => t ? `<button class="ptype" data-ptype="${t[0]}" aria-pressed="${curType === t[0]}" title="${t[1]}: ${PLAIN[t[0]].what}">${symSvg(symbolKey(firstOfType(t[0])))}${t[1]}</button>` : '<div class="ribbon-sep" aria-hidden="true"></div>').join('');
 }
-function libItemsFor() {
-  const q = state.query.trim().toLowerCase();
-  if (q) return CATALOG.filter(c => [c.name, c.mpn, c.spec, c.pkg, c.cat, c.type].join(' ').toLowerCase().includes(q));
-  return state.menu ? CATALOG.filter(c => c.cat === state.menu) : [];
-}
-function renderLibrary() {
-  const pop = $('libpop');
-  const items = libItemsFor();
-  if (!state.menu && !state.query.trim()) { pop.hidden = true; return; }
-  pop.hidden = false;
-  const head = state.query.trim() ? `${items.length} part${items.length === 1 ? '' : 's'} matching “${esc(state.query.trim())}”` : esc(state.menu);
-  pop.innerHTML = `<div class="libhead">${head}</div>` + (items.length ? items.map(c =>
-    `<button class="libitem" data-pick="${c.id}" aria-pressed="${state.tool === c.id}">${symSvg(symbolKey(c))}<span class="li-name"><b>${esc(c.mpn.startsWith('Model') ? c.name : c.mpn)}</b> ${esc(c.mpn.startsWith('Model') ? '' : c.name)}</span><span class="li-spec">${esc(c.spec)}</span><span class="li-pkg">${esc(c.pkg)}</span></button>`).join('')
-    : '<p class="note" style="padding:8px">No parts match. Try a part number like 2N3904 or a word like regulator.</p>');
-}
-
 /* ---------- readings ---------- */
 const fmtPh = (z, u) => `${fmtEng(cabs(z), u)}<br>∠${fmtNum(cdeg(z), 1)}°`;
 function pinIdx(p, name) { return catalogOf(p).pins.indexOf(name); }
 function dcOf(p) { return result && result.dc && result.dc.parts[p.id]; }
-function bjtInfo(p, r) {
-  const c = catalogOf(p), pol = c.model.pol;
-  const V = n => r.pinV[pinIdx(p, n)][0], I = n => r.pinI[pinIdx(p, n)][0];
-  const vbe = pol * (V('B') - V('E')), vce = pol * (V('C') - V('E')), ic = pol * I('C'), ib = pol * I('B');
-  const region = vbe < 0.45 || ic < 1e-7 ? 'Cutoff' : vce < 0.25 ? 'Saturation' : 'Active';
-  return { vbe, vce, ic, ib, region };
-}
-function mosInfo(p, r) {
-  const c = catalogOf(p), pol = c.model.pol;
-  const V = n => r.pinV[pinIdx(p, n)][0];
-  const vgs = pol * (V('G') - V('S')), vds = pol * (V('D') - V('S')), id = pol * r.pinI[pinIdx(p, 'D')][0];
-  const region = vgs < c.model.Vto ? 'Off' : vds < vgs - c.model.Vto ? 'On (ohmic)' : 'Saturation';
-  return { vgs, vds, id, region };
-}
 function opampInfo(p, r) {
   const c = catalogOf(p), v = k => r.pinV[k][0];
   const vhi = v(c.vp) - c.model.headHi, vlo = v(c.vn) + c.model.headLo;
@@ -984,28 +844,19 @@ function opampInfo(p, r) {
     return { vo, io, sat, span: v(c.vp) - v(c.vn) };
   });
 }
-function regInfo(p, r) {
-  const c = catalogOf(p), V = n => r.pinV[pinIdx(p, n)][0];
-  const ref = c.model.kind === 'adj' ? V('ADJ') : V('GND');
-  const vin = V('IN'), vout = V('OUT'), iout = -r.pinI[pinIdx(p, 'OUT')][0];
-  return { vin, vout, iout, ref, headroom: vin - vout, pd: r.p };
-}
 function readingCells(p, r) {
   const ac = state.mode === 'AC';
   if (ac) {
     if (p.pins) {
       const c = catalogOf(p);
-      const keys = p.type === 'BJT' ? ['C', 'B'] : p.type === 'MOS' ? ['D', 'G'] : p.type === 'REG' ? ['OUT', 'IN'] : p.type === 'POT' ? ['W'] : c.units.map(u => c.pins[u.out]);
-      return keys.map(k => [k + ' (rms)', fmtPh(r.pinV[c.pins.indexOf(k)], 'V')]).concat(p.type === 'BJT' ? [['Ic', fmtPh(r.pinI[c.pins.indexOf('C')], 'A')]] : p.type === 'MOS' ? [['Id', fmtPh(r.pinI[c.pins.indexOf('D')], 'A')]] : []).slice(0, 3);
+      const keys = p.type === 'POT' ? ['W'] : c.units.map(u => c.pins[u.out]);
+      return keys.map(k => [k + ' (rms)', fmtPh(r.pinV[c.pins.indexOf(k)], 'V')]);
     }
     const src = p.type === 'VDC' || p.type === 'VAC';
     return [['V rms', fmtPh(r.v, 'V')], [src ? 'I out' : 'I rms', fmtPh(src ? [-r.i[0], -r.i[1]] : r.i, 'A')], [src ? 'P out' : 'P avg', fmtEng(src ? -r.p : r.p, 'W')]];
   }
   switch (p.type) {
-    case 'BJT': { const b = bjtInfo(p, r); return [['Ic', fmtEng(b.ic, 'A')], ['Ib · β', `${fmtEng(b.ib, 'A')}<br>β ${b.ib > 1e-9 ? Math.round(b.ic / b.ib) : '—'}`], ['Vce · Vbe', `${fmtEng(b.vce, 'V')}<br>${fmtEng(b.vbe, 'V')}`], ['Power', fmtEng(r.p, 'W')]]; }
-    case 'MOS': { const m = mosInfo(p, r); return [['Id', fmtEng(m.id, 'A')], ['Vgs', fmtEng(m.vgs, 'V')], ['Vds', fmtEng(m.vds, 'V')], ['Power', fmtEng(r.p, 'W')]]; }
     case 'OPAMP': { const u = opampInfo(p, r), c = catalogOf(p); return u.map((x, k) => [c.units.length > 1 ? `Out ${k + 1}` : 'Out', `${fmtEng(x.vo, 'V')}<br>${fmtEng(x.io, 'A')}`]).concat([['Supply', fmtEng(u[0].span, 'V')], ['Power', fmtEng(r.p, 'W')]]); }
-    case 'REG': { const g = regInfo(p, r); return [['Vin → Vout', `${fmtEng(g.vin - g.ref, 'V')}<br>${fmtEng(g.vout - g.ref, 'V')}`], ['Iout', fmtEng(g.iout, 'A')], ['Dissipation', fmtEng(g.pd, 'W')]]; }
     case 'POT': return [['Wiper', fmtEng(r.pinV[1][0], 'V')], ['Current', fmtEng(Math.max(Math.abs(r.pinI[0][0]), Math.abs(r.pinI[2][0])), 'A')], ['Power', fmtEng(r.p, 'W')]];
     case 'SW': return [['State', p.closed ? 'Closed' : 'Open'], ['Voltage', fmtEng(r.v[0], 'V')], ['Current', fmtEng(r.i[0], 'A')]];
   }
@@ -1015,7 +866,7 @@ function readingCells(p, r) {
 function partValueText(p) {
   const c = catalogOf(p);
   switch (p.type) {
-    case 'R': return fmtEng(p.value, 'Ω') + ' ±' + p.tol + '% · ' + fmtEng(p.pRating, 'W');
+    case 'R': return fmtEng(p.value, 'Ω') + ' · ' + fmtEng(p.pRating, 'W');
     case 'C': return fmtEng(p.value, 'F') + ' · ' + p.vRating + ' V';
     case 'L': return fmtEng(p.value, 'H');
     case 'LED': return (LED_TYPES[p.color] || LED_TYPES.red).label.split(' (')[0] + ' LED';
@@ -1028,7 +879,7 @@ function partValueText(p) {
 }
 function checkPart(p, rr) {
   if (!rr) return { cls: 'off', text: '—' };
-  const r = (['D', 'LED', 'BJT', 'MOS', 'OPAMP', 'REG', 'SW', 'POT'].includes(p.type) && dcOf(p)) || rr;
+  const r = (['D', 'LED', 'OPAMP', 'SW', 'POT'].includes(p.type) && dcOf(p)) || rr;
   const c = catalogOf(p), rt = (c && c.rating) || {};
   const Iabs = r.i ? cabs(r.i) : 0, Vabs = r.v ? cabs(r.v) : 0;
   if (p.type === 'R') {
@@ -1046,13 +897,11 @@ function checkPart(p, rr) {
     return { cls: 'ok', text: 'Lit, within rating' };
   }
   if (p.type === 'D') {
-    const I = r.i[0], P = r.p;
+    const I = r.i[0];
     if (rt.vrMax && r.v[0] < -rt.vrMax) return { cls: 'bad', text: `Over ${rt.vrMax} V reverse rating` };
     if (rt.ifMax && I > rt.ifMax) return { cls: 'bad', text: `Over ${fmtEng(rt.ifMax, 'A')} forward rating` };
-    if (rt.pdMax && P > rt.pdMax) return { cls: 'bad', text: `Over ${fmtEng(rt.pdMax, 'W')} dissipation` };
-    if (c.zener && I < -1e-4) return { cls: 'ok', text: `Regulating, ${fmtEng(-I, 'A')} (Izt ${fmtEng(c.model.IBV, 'A')})` };
     if (I > 1e-5) return { cls: 'ok', text: 'Conducting' };
-    return { cls: 'off', text: c.zener ? 'Below Vz' : 'Blocking' };
+    return { cls: 'off', text: 'Blocking' };
   }
   if (p.type === 'C') {
     const vpk = state.mode === 'AC' ? Vabs * Math.SQRT2 : Vabs;
@@ -1068,21 +917,6 @@ function checkPart(p, rr) {
   }
   if (p.type === 'SW') return Iabs > p.iRating ? { cls: 'bad', text: `Over ${fmtEng(p.iRating, 'A')} contact rating` } : { cls: p.closed ? 'ok' : 'off', text: p.closed ? 'Closed' : 'Open' };
   if (p.type === 'POT') return r.p > p.pRating ? { cls: 'bad', text: `Over ${fmtEng(p.pRating, 'W')} rating` } : { cls: 'ok', text: `${Math.round(r.p / p.pRating * 100)}% of ${fmtEng(p.pRating, 'W')}` };
-  if (p.type === 'BJT') {
-    const b = bjtInfo(p, r);
-    if (b.ic > rt.icMax) return { cls: 'bad', text: `Ic over ${fmtEng(rt.icMax, 'A')}` };
-    if (r.p > rt.pdMax) return { cls: 'bad', text: `Over ${fmtEng(rt.pdMax, 'W')} dissipation` };
-    if (b.vce > rt.vceoMax) return { cls: 'bad', text: `Vce over ${rt.vceoMax} V` };
-    return { cls: b.region === 'Cutoff' ? 'off' : 'ok', text: b.region + (r.p > 0.5 * rt.pdMax ? ', warm' : '') };
-  }
-  if (p.type === 'MOS') {
-    const m = mosInfo(p, r);
-    if (Math.abs(m.vgs) > rt.vgsMax) return { cls: 'bad', text: `Vgs over ±${rt.vgsMax} V` };
-    if (m.id > rt.idMax) return { cls: 'bad', text: `Id over ${fmtEng(rt.idMax, 'A')}` };
-    if (r.p > rt.pdMax) return { cls: 'bad', text: `Over ${fmtEng(rt.pdMax, 'W')} dissipation` };
-    if (m.vds > rt.vdsMax) return { cls: 'bad', text: `Vds over ${rt.vdsMax} V` };
-    return { cls: m.region === 'Off' ? 'off' : 'ok', text: m.region };
-  }
   if (p.type === 'OPAMP') {
     const u = opampInfo(p, r);
     if (u[0].span > rt.vsMax) return { cls: 'bad', text: `Supply over ${rt.vsMax} V` };
@@ -1090,16 +924,6 @@ function checkPart(p, rr) {
     if (u.some(x => Math.abs(x.io) > c.model.Ilim * 0.9)) return { cls: 'bad', text: 'Output in current limit' };
     const s = u.map((x, k) => x.sat ? `${u.length > 1 ? 'out ' + (k + 1) + ' ' : ''}clipped ${x.sat}` : null).filter(Boolean);
     return s.length ? { cls: 'warn', text: s.join(', ') } : { cls: 'ok', text: 'Linear' };
-  }
-  if (p.type === 'REG') {
-    const g = regInfo(p, r);
-    if (g.vin - g.ref < 1) return { cls: 'off', text: 'No input' };
-    if (rt.vinMax && g.vin - g.ref > rt.vinMax) return { cls: 'bad', text: `Input over ${rt.vinMax} V` };
-    if (g.iout > rt.iMax) return { cls: 'bad', text: `Over ${fmtEng(rt.iMax, 'A')} output` };
-    if (g.pd > rt.pdMax) return { cls: 'bad', text: `${fmtEng(g.pd, 'W')}: needs a heatsink` };
-    if (g.headroom < c.model.Vdo + 0.15) return { cls: 'warn', text: `In dropout (needs ${c.model.Vdo} V headroom)` };
-    if (rt.iMin && g.iout < rt.iMin) return { cls: 'warn', text: `Under ${fmtEng(rt.iMin, 'A')} minimum load` };
-    return { cls: 'ok', text: 'Regulating' };
   }
   if (p.type === 'VDC' || p.type === 'VAC') {
     if (p.iLimit > 0 && state.mode === 'DC' && -rr.i[0] > 0.97 * p.iLimit) return { cls: 'warn', text: `Current limit (${fmtEng(p.iLimit, 'A')})` };
@@ -1163,60 +987,11 @@ function renderInspector() {
       ${actions('<button class="btn sm danger" id="in-del">Delete</button><button class="btn sm" id="in-done">Done</button>')}`;
     return;
   }
-  const c = catalogOf(p);
-  if (!state.detail) { renderSimpleInspector(el, p, c, isDraft); return; }
-  const family = isDraft ? CATALOG.filter(x => x.type === p.type)
-    : CATALOG.filter(x => x.type === p.type && (x.footprint || null) === (c.footprint || null) && (p.type !== 'OPAMP' || x.units.length === c.units.length));
-  let f = '';
-  if (family.length > 1 && p.type !== 'LED') f += selectRow('in-model', 'Part', family.map(x => [x.id, (x.mpn.startsWith('Model') || ['R', 'C', 'L'].includes(x.type) ? x.name : x.mpn + ' — ' + x.name)]), c.id);
-  if (p.type === 'R') {
-    f += fieldRow('in-value', 'Resistance (Ω)', engIn(p.value), `<button class="btn" id="in-snap" title="Snap to ${state.series}">${state.series}</button>`);
-    f += selectRow('in-tol', 'Tolerance', [[20, '±20%'], [10, '±10% (silver)'], [5, '±5% (gold)'], [2, '±2% (red)'], [1, '±1% (brown)'], [0.5, '±0.5% (green)'], [0.25, '±0.25% (blue)'], [0.1, '±0.1% (violet)']], p.tol);
-    f += selectRow('in-prating', 'Power', POWER_RATINGS.map(w => [w, fmtEng(w, 'W')]), p.pRating);
-    const bands = colorBands(p.value, p.tol);
-    f += `<p class="muted">Bands ${bands ? bands.map(b => b.n).join(', ') : '—'} · code ${rkm(p.value)}${isInSeries(p.value, 'E24') || isInSeries(p.value, 'E96') ? '' : ' · <span style="color:var(--warn)">not a standard E-series value</span>'}</p>`;
-  } else if (p.type === 'C') {
-    f += fieldRow('in-value', 'Capacitance (F)', engIn(p.value), `<button class="btn" id="in-snap">E12</button>`);
-    f += selectRow('in-vrating', 'Voltage rating', [6.3, 10, 16, 25, 35, 50, 63, 100, 250, 400].map(v => [v, v + ' V']), p.vRating);
-    f += `<p class="muted">${p.polarized ? `Polarized: first lead is +. ESR ${fmtEng(p.esr || 0, 'Ω')} included in AC.` : 'Marked ' + capCodeEncode(p.value) + '.'}</p>`;
-  } else if (p.type === 'L') {
-    f += fieldRow('in-value', 'Inductance (H)', engIn(p.value), `<button class="btn" id="in-snap">E12</button>`);
-    f += fieldRow('in-dcr', 'DCR (Ω)', engIn(p.dcr || 0));
-    f += fieldRow('in-irating', 'Rated current (A)', engIn(p.iRating, 3));
-  } else if (p.type === 'LED') {
-    f += selectRow('in-color', 'Color', Object.entries(LED_TYPES).map(([k, t]) => [k, `${t.label} · Vf ${t.vf} V`]), p.color);
-    f += fieldRow('in-ifmax', 'Max current (A)', engIn(p.ifMax, 3));
-    f += `<p class="muted">First lead is the anode (long leg).</p>`;
-  } else if (p.type === 'VDC') {
-    f += fieldRow('in-value', 'Voltage (V)', engIn(p.value));
-    if ('iLimit' in p) f += fieldRow('in-ilimit', 'Current limit (A)', engIn(p.iLimit, 3));
-    f += `<p class="muted">${p.rint > 0 ? `Internal resistance ${fmtEng(p.rint, 'Ω')}, so it sags under load. ` : ''}First lead is +.</p>`;
-  } else if (p.type === 'VAC') {
-    f += fieldRow('in-value', 'Amplitude (V rms)', engIn(p.value));
-    f += fieldRow('in-phase', 'Phase (°)', p.phase || 0);
-    f += `<p class="muted">Peak ${fmtEng(p.value * Math.SQRT2, 'V')}.${p.rint ? ' 50 Ω output.' : ''} Frequency is set above.</p>`;
-  } else if (p.type === 'POT') {
-    f += fieldRow('in-value', 'Track (Ω)', engIn(p.value));
-    f += `<label for="in-pos">Wiper <span class="mono">${Math.round((p.pos ?? 0.5) * 100)}%</span><input type="range" id="in-pos" min="0" max="100" value="${Math.round((p.pos ?? 0.5) * 100)}"></label>`;
-  } else if (p.type === 'SW') {
-    f += `<label>State<button class="btn" id="in-toggle">${p.closed ? 'Closed' : 'Open'} · ${p.momentary ? (p.closed ? 'release' : 'press') : 'flip'}</button></label>`;
-  }
-  if (c.footprint) f += `<p class="pinout">${c.pins.map((n, k) => `<span><b>${esc(n)}</b>${p.pins ? ' ' + esc(holeName(p.pins[k])) : ''}</span>`).join('')}</p>`;
-  const title = isDraft ? `New ${TYPE_NOUN[p.type]}` : `${p.name} · ${c.mpn.startsWith('Model') || ['R', 'C', 'L', 'LED'].includes(p.type) ? c.name : c.mpn}`;
-  const sub = `${c.pkg} · ${c.spec}`;
-  const place = c.footprint === 'dip8' ? 'Click a column on the board.'
-    : c.footprint ? 'Click the hole for its left pin.'
-    : state.pending ? 'Now click the second hole.' : 'Click two holes on the board.';
-  el.innerHTML = `<div class="insp-title">${symSvg(symbolKey(c))}<span><b>${esc(title)}</b><small>${esc(sub)}</small></span></div>
-    <div class="form">${f}</div>
-    ${actions(isDraft ? hint(`<b>Then place it:</b> ${place.toLowerCase()}`) + '<button class="btn sm" id="in-del">Cancel</button>'
-      : `<button class="btn sm danger" id="in-del">Delete</button>${p.pins && c.footprint === '3inline' ? '<button class="btn sm" id="in-rot">Turn around</button>' : !p.pins ? '<button class="btn sm" id="in-rot">Swap leads</button>' : ''}<button class="btn sm" id="in-done">Done</button>`)}
-    ${detailToggle()}`;
+  renderPartInspector(el, p, catalogOf(p), isDraft);
 }
-const detailToggle = () => `<label class="detail-toggle" title="Show every real part, tolerance and rating"><input type="checkbox" id="in-detail" ${state.detail ? 'checked' : ''}> Real-part details</label>`;
-// learning view: big capacitors are electrolytics and small ones ceramics, as on a real bench
+// big capacitors are electrolytics and small ones ceramics, as on a real bench
 function matchCapType(p) {
-  if (state.detail || p.type !== 'C') return;
+  if (p.type !== 'C') return;
   const want = p.value >= 1e-6 ? 'C-ELEC' : 'C-X7R';
   if (p.model === want) return;
   const v = p.value;
@@ -1225,7 +1000,7 @@ function matchCapType(p) {
   if (p === state.draft) state.tool = want;
 }
 const quickLabel = (v, u) => fmtEng(v, u, 3).replace(' ', '');
-function renderSimpleInspector(el, p, c, isDraft) {
+function renderPartInspector(el, p, c, isDraft) {
   const P = PLAIN[p.type];
   const hint = t => `<span class="insp-hint">${t}</span>`, actions = btns => `<div class="insp-actions">${btns}</div>`;
   let f = '';
@@ -1239,7 +1014,7 @@ function renderSimpleInspector(el, p, c, isDraft) {
   }
   if (p.type === 'POT') f += `<label for="in-pos">Wiper <span class="mono">${Math.round((p.pos ?? 0.5) * 100)}%</span><input type="range" id="in-pos" min="0" max="100" value="${Math.round((p.pos ?? 0.5) * 100)}"></label>`;
   if (p.type === 'SW') f += `<label>State<button class="btn" id="in-toggle">${p.closed ? 'On (closed)' : 'Off (open)'}</button></label>`;
-  const PIN_WORD = { E: 'emitter', B: 'base', C: 'collector', S: 'source', G: 'gate', D: 'drain', IN: 'in', OUT: 'out', GND: 'ground', ADJ: 'adjust', W: 'wiper', 1: 'end', 3: 'end' };
+  const PIN_WORD = { W: 'wiper', 1: 'end', 3: 'end' };
   if (c.footprint === '3inline') f += `<p class="pinout"><span class="muted">Pins, left to right:</span> ${c.pins.map((n, k) => `<span><b>${esc(n)}</b> ${esc(PIN_WORD[n] || '')}${p.pins ? ' (' + esc(holeName(p.pins[k])) + ')' : ''}</span>`).join('')}</p>`;
   else if (c.footprint) f += `<p class="pinout"><span class="muted">Pins:</span> ${c.pins.map((n, k) => `<span><b>${k + 1}</b> ${esc(n)}</span>`).join('')}</p>`;
   const noun = TYPE_NOUN[p.type];
@@ -1248,49 +1023,9 @@ function renderSimpleInspector(el, p, c, isDraft) {
   el.innerHTML = `<div class="insp-title">${symSvg(symbolKey(c))}<span><b>${esc(title)}</b><small>${esc(P.what)}</small></span></div>
     <div class="form">${f}</div>
     ${actions((isDraft ? hint(`<b>To place:</b> ${esc(howto)}`) + '<button class="btn sm" id="in-del">Cancel</button>'
-      : `<button class="btn sm danger" id="in-del">Delete</button>${!p.pins ? '<button class="btn sm" id="in-rot">Flip around</button>' : ''}<button class="btn sm" id="in-done">Done</button>`) + detailToggle())}`;
+      : `<button class="btn sm danger" id="in-del">Delete</button>${!p.pins ? '<button class="btn sm" id="in-rot">Flip around</button>' : ''}<button class="btn sm" id="in-done">Done</button>`))}`;
 }
 
-function renderBode() {
-  const panel = $('bodepanel');
-  const el = $('bode');
-  if (state.mode !== 'AC') { panel.hidden = true; return; }
-  panel.hidden = false;
-  if (!result || !result.ok || result.empty) { el.innerHTML = '<p class="muted small">Solve the circuit first.</p>'; return; }
-  const topo = result.topo;
-  const nets = [...topo.used].filter(r => r !== topo.gnd);
-  if (!state.probe || !topo.parent.has(state.probe) || topo.find(state.probe) === topo.gnd) state.probe = nets[0] || null;
-  const opts = nets.map(r => `<option value="${r}" ${topo.find(state.probe) === r ? 'selected' : ''}>${esc(netName(r, topo))}</option>`).join('');
-  const pts = state.probe ? sweep(state.parts, state.probe) : null;
-  let svg = '';
-  if (pts) {
-    const W = 520, H = 210, l = 40, rr = 36, t = 10, bt = 24;
-    const fx = f => l + (Math.log10(f) / 6) * (W - l - rr);
-    const mx = Math.max(...pts.map(p => p.db)), mn = Math.min(...pts.map(p => p.db));
-    const top = Math.ceil((mx + 1) / 10) * 10, bot = Math.max(-120, Math.floor(Math.min(mn, top - 20) / 20) * 20);
-    const fy = d => t + (top - d) / (top - bot) * (H - t - bt);
-    const py = ph => t + (180 - ph) / 360 * (H - t - bt);
-    svg += `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bode plot">`;
-    for (let d = 0; d <= 6; d++) { const x = fx(Math.pow(10, d)); svg += `<line x1="${x}" y1="${t}" x2="${x}" y2="${H - bt}" stroke="var(--grid)"/><text x="${x}" y="${H - 8}" text-anchor="middle">${['1', '10', '100', '1k', '10k', '100k', '1M'][d]}</text>`; }
-    for (let d = bot; d <= top; d += (top - bot > 60 ? 20 : 10)) { const y = fy(d); svg += `<line x1="${l}" y1="${y}" x2="${W - rr}" y2="${y}" stroke="var(--grid)"/><text x="${l - 5}" y="${y + 3}" text-anchor="end">${d}</text>`; }
-    for (const ph of [-180, -90, 0, 90, 180]) svg += `<text x="${W - rr + 5}" y="${py(ph) + 3}">${ph}°</text>`;
-    svg += `<text x="${l}" y="${t - 1}" style="font-size:9px">dB</text><text x="${W - 8}" y="${H - 8}" text-anchor="end" style="font-size:9px">Hz</text>`;
-    svg += `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + fx(p.f).toFixed(1) + ' ' + py(p.ph).toFixed(1)).join(' ')}" fill="none" stroke="var(--signal)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
-    svg += `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + fx(p.f).toFixed(1) + ' ' + fy(Math.max(bot, p.db)).toFixed(1)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
-    const fcur = Math.min(1e6, Math.max(1, state.freq));
-    svg += `<line x1="${fx(fcur)}" y1="${t}" x2="${fx(fcur)}" y2="${H - bt}" stroke="var(--ink)" stroke-opacity="0.5" stroke-dasharray="2 3"/>`;
-    const peak = Math.max(...pts.map(p => p.db));
-    let cross = null;
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1].db - (peak - 3), b = pts[i].db - (peak - 3);
-      if (a * b < 0) { const k = a / (a - b); cross = pts[i - 1].f * Math.pow(pts[i].f / pts[i - 1].f, k); break; }
-    }
-    if (cross) svg += `<circle cx="${fx(cross)}" cy="${fy(peak - 3)}" r="3.5" fill="var(--accent)"/>`;
-    svg += `</svg>`;
-    svg += `<p class="note">Solid: gain from the first AC source to the probe node. Dashed: phase. ${cross ? `−3 dB point near <b class="mono">${fmtEng(cross, 'Hz')}</b>.` : 'No −3 dB crossing between 1 Hz and 1 MHz.'} Dotted line marks the analysis frequency.</p>`;
-  } else svg = '<p class="muted small">Add an AC source to plot the response.</p>';
-  el.innerHTML = `<label class="small muted" for="probe" style="display:flex;gap:8px;align-items:center;margin-bottom:6px">Probe node <select id="probe">${opts}</select></label>` + svg;
-}
 function renderAbout() {
   const el = $('about'), s = state.about && SAMPLE_CIRCUITS[state.about];
   el.hidden = !s;
@@ -1301,10 +1036,9 @@ function renderAbout() {
     <h3>Try this</h3><p>${esc(s.try)}</p>
     ${state.sample !== state.about ? '<p class="note">You have changed the board since loading this sample, so the readings may differ from the numbers above.</p>' : ''}`;
 }
-function renderNetlist() { $('netlist').textContent = spiceNetlist(state.parts, state.mode, state.freq); }
 function renderBoardView() {
   recompute();
-  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); renderBode(); renderNetlist(); revealSelectedReading();
+  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); revealSelectedReading();
   $('mode-dc').setAttribute('aria-pressed', state.mode === 'DC');
   $('mode-ac').setAttribute('aria-pressed', state.mode === 'AC');
   $('freqwrap').hidden = state.mode !== 'AC';
@@ -1330,7 +1064,6 @@ $('board').addEventListener('pointermove', e => {
 });
 $('board').addEventListener('pointerleave', () => { state.hover = null; renderOverlay(); renderStatus(); });
 $('board').addEventListener('click', e => {
-  closeMenu();
   const partEl = e.target.closest('[data-part]');
   if (state.tool === 'select') {
     state.draft = null;
@@ -1349,7 +1082,7 @@ $('board').addEventListener('click', e => {
   const c = CATALOG_BY_ID[state.tool];
   if (c && c.footprint) {
     const holes = footprintHoles(c.footprint, c.footprint === 'dip8' ? 'f' + parseHole(h).c : h);
-    if (!holes) { flashStatus(`The ${c.mpn} does not fit there. ${c.footprint === 'dip8' ? 'It needs four free columns across the center channel.' : 'It needs three columns in the a–j area.'}`); return; }
+    if (!holes) { flashStatus(`The ${c.mpn.replace(/^Bourns /, '')} does not fit there. ${c.footprint === 'dip8' ? 'It needs four free columns across the center channel.' : 'It needs three columns in the a–j area.'}`); return; }
     if (holes.some(occupied)) flashStatus('Some of those holes already hold a lead. The part was still placed.');
     const p = makePart(state.tool, holes, null, draftProps()); state.parts.push(p);
     renderBoardView(); return;
@@ -1372,30 +1105,19 @@ function setTool(t) {
   else state.draft = null;
   renderPalette(); renderBoardView();
 }
-function closeMenu() { if (state.menu || state.query) { state.menu = null; state.query = ''; $('libsearch').value = ''; renderPalette(); renderLibrary(); } }
-$('palette').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) { closeMenu(); setTool(b.dataset.tool); } });
+$('palette').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) setTool(b.dataset.tool); });
 $('ptypes').addEventListener('click', e => {
   const b = e.target.closest('[data-ptype]'); if (!b) return;
-  closeMenu();
   const t = b.dataset.ptype, d = state.drafts[t];
   setTool(d ? d.model : firstOfType(t).id);
 });
-$('libsearch').addEventListener('input', e => { state.query = e.target.value; state.menu = null; const rr = $('ribbon').getBoundingClientRect(), rb = e.target.getBoundingClientRect(); $('libpop').style.setProperty('--pop-left', Math.max(0, Math.min(rb.right - rr.left - 520, rr.width - 520)) + 'px'); renderPalette(); renderLibrary(); });
-$('libsearch').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { const first = libItemsFor()[0]; if (first) { closeMenu(); setTool(first.id); } }
-  if (e.key === 'Escape') { closeMenu(); e.target.blur(); }
-});
-$('libpop').addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b) { closeMenu(); setTool(b.dataset.pick); } });
 $('status').addEventListener('click', e => { if (e.target.id === 'placing-x') setTool('select'); });
-// composedPath, not closest: the ribbon re-renders its buttons inside the click handler
-document.addEventListener('click', e => { if (!e.composedPath().some(n => n.id === 'ribbon')) closeMenu(); });
 document.addEventListener('keydown', e => {
   if (state.tab !== 'board') return;
   if (e.target.matches('input, textarea, select')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === 'Escape') { if (state.menu) closeMenu(); else if (state.pending) { state.pending = null; renderOverlay(); renderStatus(); } else setTool('select'); return; }
+  if (e.key === 'Escape') { if (state.pending) { state.pending = null; renderOverlay(); renderStatus(); } else setTool('select'); return; }
   if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected) { deleteSelected(); e.preventDefault(); return; }
-  if (e.key === '/') { e.preventDefault(); $('libsearch').focus(); return; }
   const k = e.key.toLowerCase();
   const quick = Object.entries(QUICK_TOOLS).find(([, d]) => d.key === k);
   if (quick) setTool(quick[0]);
@@ -1404,27 +1126,18 @@ document.addEventListener('keydown', e => {
 function deleteSelected() { state.parts = state.parts.filter(p => p.id !== state.selected); state.selected = null; state.sample = ''; renderBoardView(); }
 
 $('inspector').addEventListener('change', e => {
-  if (e.target.id === 'in-detail') { state.detail = e.target.checked; renderInspector(); save(); return; }
   const p = inspTarget(); if (!p) return;
   const isDraft = p === state.draft;
   const id = e.target.id, v = e.target.value;
   const num = parseEng(v);
   if (id === 'in-model') {
-    const c = CATALOG_BY_ID[v], keep = ['R', 'C', 'L'].includes(p.type) ? { value: p.value } : {};
+    const c = CATALOG_BY_ID[v], keep = ['R', 'C', 'L', 'VDC', 'VAC'].includes(p.type) ? { value: p.value } : {};
     for (const k of ['tol', 'pRating', 'vRating', 'esr', 'polarized', 'dielectric', 'dcr', 'iRating', 'rint', 'iLimit', 'ron', 'momentary', 'closed']) delete p[k];
     Object.assign(p, JSON.parse(JSON.stringify(c.defaults || {})), keep, { model: c.id });
     if (isDraft) { state.tool = c.id; renderPalette(); }
   }
   else if (id === 'in-value') { if (num > 0 || (p.type === 'VDC' && isFinite(num))) { p.value = num; matchCapType(p); } else flashStatus('Enter a number such as 4.7k, 100n or 2R2.'); }
-  else if (id === 'in-tol') p.tol = +v;
-  else if (id === 'in-prating') p.pRating = +v;
-  else if (id === 'in-vrating') p.vRating = +v;
-  else if (id === 'in-dcr') p.dcr = num >= 0 ? num : 0;
-  else if (id === 'in-irating') { if (num > 0) p.iRating = num; }
-  else if (id === 'in-ilimit') { if (num > 0) p.iLimit = num; }
   else if (id === 'in-color') { p.color = v; p.model = 'LED-' + v; if (isDraft) state.tool = p.model; }
-  else if (id === 'in-ifmax') { if (num > 0) p.ifMax = num; }
-  else if (id === 'in-phase') p.phase = isFinite(num) ? num : 0;
   else if (id === 'in-pos') return;
   if (!isDraft) state.sample = '';
   renderBoardView();
@@ -1435,7 +1148,7 @@ $('inspector').addEventListener('input', e => {
   p.pos = +e.target.value / 100;
   e.target.previousElementSibling.textContent = e.target.value + '%';
   if (p === state.draft) return;
-  recompute(); renderParts(); renderVolt(); renderResults(); renderSummary(); renderNetlist(); save();
+  recompute(); renderParts(); renderVolt(); renderResults(); renderSummary(); save();
   e.target.previousElementSibling.textContent = e.target.value + '%';
 });
 $('inspector').addEventListener('click', e => {
@@ -1443,7 +1156,6 @@ $('inspector').addEventListener('click', e => {
   const id = e.target.id;
   if (e.target.dataset.qv) {
     p.value = +e.target.dataset.qv;
-    // in the learning view, big capacitors are electrolytics and small ones ceramics, as on a real bench
     matchCapType(p);
     if (p !== state.draft) state.sample = '';
     renderBoardView(); return;
@@ -1451,7 +1163,6 @@ $('inspector').addEventListener('click', e => {
   if (p === state.draft && (id === 'in-del' || id === 'in-done')) setTool('select');
   else if (id === 'in-del') deleteSelected();
   else if (id === 'in-done') { state.selected = null; renderBoardView(); }
-  else if (id === 'in-snap') { p.value = snap(p.value, p.type === 'R' ? state.series : 'E12'); renderBoardView(); }
   else if (id === 'in-toggle') { p.closed = !p.closed; renderBoardView(); }
   else if (id === 'in-rot') { if (p.pins) p.pins = p.pins.slice().reverse(); else [p.a, p.b] = [p.b, p.a]; renderBoardView(); }
   else if (e.target.dataset.wc) { p.color = e.target.dataset.wc; renderBoardView(); }
@@ -1460,7 +1171,6 @@ $('results').addEventListener('click', e => { const tr = e.target.closest('[data
 // the readings frame sticks below the ribbon, whose height changes with the inspector row
 try { new ResizeObserver(() => document.documentElement.style.setProperty('--ribbon-h', $('ribbon').offsetHeight + 'px')).observe($('ribbon')); } catch (e) {}
 $('results').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.rd')) { e.preventDefault(); e.target.click(); } });
-$('bode').addEventListener('change', e => { if (e.target.id === 'probe') { state.probe = e.target.value; renderBoardView(); } });
 $('mode-dc').addEventListener('click', () => { state.mode = 'DC'; renderBoardView(); });
 $('mode-ac').addEventListener('click', () => { state.mode = 'AC'; renderBoardView(); });
 $('freq').addEventListener('change', e => { const f = parseEng(e.target.value); if (f > 0) state.freq = f; e.target.value = fmtEng(state.freq, '').replace(' ', ''); renderBoardView(); });
@@ -1478,123 +1188,92 @@ $('btn-clear').addEventListener('click', e => {
   state.parts = []; state.selected = null; state.sample = ''; state.about = null; renderBoardView();
 });
 $('btn-copy').addEventListener('click', e => {
-  const txt = $('netlist').textContent;
+  const txt = spiceNetlist(state.parts, state.mode, state.freq);
   const done = () => { e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy for LTspice', 1600); };
-  const fallback = () => { const r = document.createRange(); r.selectNodeContents($('netlist')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); e.target.textContent = 'Selected, press Ctrl/⌘+C'; };
-  try { navigator.clipboard.writeText(txt).then(done, fallback); } catch (err) { fallback(); }
+  const fail = () => { flashStatus('Could not reach the clipboard. Allow clipboard access for this page and try again.'); };
+  try { navigator.clipboard.writeText(txt).then(done, fail); } catch (err) { fail(); }
 });
 
 /* ===================== Calculators ===================== */
 const V = id => parseEng($(id).value);
 const dl = rows => `<dl class="res">${rows.filter(Boolean).map(([k, v, big]) => `<dt>${k}</dt><dd class="${big ? 'big' : ''}">${v}</dd>`).join('')}</dl>`;
+const work = lines => `<p class="work">${lines.filter(Boolean).join('<br>')}</p>`;
 const errMsg = m => `<p class="note" style="color:var(--bad)">${m}</p>`;
+const fe = (v, u, sig = 4) => fmtEng(v, u, sig);
+// plain number to 4 significant figures with a real minus sign, for the worked steps
+const g4 = x => { const t = String(+x.toPrecision(4)); return t.startsWith('-') ? '−' + t.slice(1) : t; };
+const sq = x => x < 0 ? `(${g4(x)})²` : `${g4(x)}²`;
 function resistorPic(v, tol) {
   const bands = colorBands(v, tol);
-  const metal = tol <= 2;
-  return `<svg viewBox="0 0 150 34" aria-hidden="true"><line x1="0" y1="17" x2="150" y2="17" stroke="#9aa2a6" stroke-width="2.5"/><rect x="30" y="5" width="90" height="24" rx="11" fill="${metal ? '#8fb3dc' : '#e2c597'}" stroke="rgba(0,0,0,.25)"/>${bandsSVG(bands, 30, 90, 24, 5)}</svg>`;
+  return `<svg viewBox="0 0 150 34" aria-hidden="true"><line x1="0" y1="17" x2="150" y2="17" stroke="#9aa2a6" stroke-width="2.5"/><rect x="30" y="5" width="90" height="24" rx="11" fill="${tol <= 2 ? '#8fb3dc' : '#e2c597'}" stroke="rgba(0,0,0,.25)"/>${bandsSVG(bands, 30, 90, 24, 5)}</svg>`;
 }
-function partBlock(v, series) {
-  const tol = SERIES_TOL[series];
-  const bands = colorBands(v, tol);
-  return `<div class="rvis">${resistorPic(v, tol)}<div class="bandnames">${bands ? bands.map(b => b.n).join(' · ') : '—'}<br>${rkm(v)} · ±${tol}%</div></div>`;
-}
-function ratingFor(p) { return POWER_RATINGS.find(w => w >= 2 * p) || null; }
-const pct = (a, b) => (a / b - 1) * 100;
-const fmtPct = x => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(2) + '%';
 
 const calcs = {
   ohm() {
     const s = $('ohm-solve').value; let v = V('ohm-v'), i = V('ohm-i'), r = V('ohm-r');
     ['ohm-v', 'ohm-i', 'ohm-r'].forEach(id => $(id).disabled = id === 'ohm-' + s.toLowerCase());
     if (s === 'R') r = v / i; else if (s === 'I') i = v / r; else v = i * r;
-    if (![v, i, r].every(isFinite) || r <= 0) return errMsg('Enter the two known values, for example 9, 20m or 470.');
+    if (![v, i, r].every(isFinite) || r <= 0) return errMsg('Enter the two known values, for example 12, 2m or 6k.');
     $('ohm-' + s.toLowerCase()).value = fmtEng(s === 'R' ? r : s === 'I' ? i : v, '', 4).replace(' ', '');
-    const p = v * i, rows = [];
-    rows.push([s === 'R' ? 'Resistance' : s === 'I' ? 'Current' : 'Voltage', s === 'R' ? fmtEng(r, 'Ω') : s === 'I' ? fmtEng(i, 'A') : fmtEng(v, 'V'), true]);
-    rows.push(['Power', fmtEng(p, 'W')]);
-    const rate = ratingFor(Math.abs(p));
-    rows.push(['Resistor rating (2× margin)', rate ? fmtEng(rate, 'W') : 'over 10 W, use a power resistor']);
-    let extra = '';
-    if (s === 'R') {
-      const rs = snap(r, state.series);
-      rows.push([`Nearest ${state.series}`, fmtEng(rs, 'Ω') + ` (${fmtPct(pct(rs, r))})`]);
-      rows.push(['Current with it', fmtEng(v / rs, 'A')]);
-      extra = partBlock(rs, state.series);
-    }
-    return dl(rows) + extra;
+    const p = v * i;
+    const step = s === 'R' ? `R = V / I = ${fe(v, 'V')} / ${fe(i, 'A')} = ${fe(r, 'Ω')}`
+      : s === 'I' ? `I = V / R = ${fe(v, 'V')} / ${fe(r, 'Ω')} = ${fe(i, 'A')}`
+      : `V = I × R = ${fe(i, 'A')} × ${fe(r, 'Ω')} = ${fe(v, 'V')}`;
+    return dl([
+      [s === 'R' ? 'Resistance' : s === 'I' ? 'Current' : 'Voltage', s === 'R' ? fe(r, 'Ω') : s === 'I' ? fe(i, 'A') : fe(v, 'V'), true],
+      ['Power', fe(p, 'W')]
+    ]) + work([step, `P = V × I = ${fe(v, 'V')} × ${fe(i, 'A')} = ${fe(p, 'W')}`]) +
+      '<p class="note">Shortcut: V ÷ kΩ = mA, and mA × kΩ = V.</p>';
   },
   res() {
-    const v = V('res-v');
-    if (!(v > 0)) return errMsg('Enter a resistance such as 3.3k, 4k7 or 220.');
-    const s = state.series, n = snap(v, s), up = snap(v, s, 'up'), dn = snap(v, s, 'down');
-    return dl([
-      [`Nearest ${s}`, fmtEng(n, 'Ω'), true],
-      ['Error', fmtPct(pct(n, v))],
-      ['Next up / down', `${fmtEng(up, 'Ω')} / ${fmtEng(dn, 'Ω')}`],
-      ['Tolerance range', `${fmtEng(n * (1 - SERIES_TOL[s] / 100), 'Ω')} to ${fmtEng(n * (1 + SERIES_TOL[s] / 100), 'Ω')}`],
-      ['RKM code', rkm(n)],
-      ['SMD marking', smdCode(n, s)]
-    ]) + partBlock(n, s) + `<p class="note">${SERIES_TOL[s] <= 2 ? '5-band code on a blue metal-film body' : '4-band code on a beige carbon-film body'}, read from the end with the bands bunched together.</p>`;
-  },
-  div() {
-    const vin = V('div-vin'), vo = V('div-vout'), rt = V('div-rt') || 10e3, rlv = $('div-rl').value.trim(), rl = rlv ? parseEng(rlv) : Infinity;
-    if (!(vin > 0 && vo > 0 && vo < vin)) return errMsg('Vout must be between 0 and Vin.');
-    if (rlv && !(rl > 0)) return errMsg('Load R must be a positive value, or leave it blank.');
-    const par = (a, b) => isFinite(b) ? a * b / (a + b) : a;
-    const cands = [];
-    for (let d = 0; d <= 6; d++) for (const b of E_BASE[state.series]) {
-      const r2 = +(b * Math.pow(10, d)).toPrecision(4);
-      const r2e = par(r2, rl); const r1i = r2e * (vin / vo - 1);
-      for (const r1 of [snap(r1i, state.series, 'up'), snap(r1i, state.series, 'down')]) {
-        if (!(r1 > 0)) continue;
-        const out = vin * r2e / (r1 + r2e), tot = r1 + r2;
-        if (tot < rt / 3 || tot > rt * 3) continue;
-        cands.push({ r1, r2, out, err: Math.abs(out / vo - 1), tot });
-      }
-    }
-    cands.sort((a, b) => a.err - b.err || Math.abs(Math.log(a.tot / rt)) - Math.abs(Math.log(b.tot / rt)));
-    const seen = new Set(), top = [];
-    for (const c of cands) { const k = c.r1 + '/' + c.r2; if (!seen.has(k)) { seen.add(k); top.push(c); } if (top.length === 3) break; }
-    if (!top.length) return errMsg('No pair found near that total resistance. Try a different total.');
-    const best = top[0], i = vin / (best.r1 + par(best.r2, rl));
-    return dl([
-      ['R1 (top)', fmtEng(best.r1, 'Ω'), true], ['R2 (bottom)', fmtEng(best.r2, 'Ω'), true],
-      ['Actual Vout', `${fmtEng(best.out, 'V', 4)} (${fmtPct(pct(best.out, vo))})`],
-      ['Divider current', fmtEng(i, 'A')],
-      ['Power in R1 / R2', `${fmtEng(i * i * best.r1, 'W')} / ${fmtEng(best.out * best.out / best.r2, 'W')}`],
-      ['Vout spread from tolerance', (() => { const t = SERIES_TOL[state.series] / 100; const lo = vin * par(best.r2 * (1 - t), rl) / (best.r1 * (1 + t) + par(best.r2 * (1 - t), rl)); const hi = vin * par(best.r2 * (1 + t), rl) / (best.r1 * (1 - t) + par(best.r2 * (1 + t), rl)); return `${fmtEng(lo, 'V')} to ${fmtEng(hi, 'V')}`; })()]
-    ]) + (top.length > 1 ? `<table class="pairs"><thead><tr><th>Other pairs</th><th class="num">Vout</th><th class="num">Error</th></tr></thead><tbody>${top.slice(1).map(c => `<tr><td class="mono">${fmtEng(c.r1, 'Ω')} + ${fmtEng(c.r2, 'Ω')}</td><td class="num mono">${fmtEng(c.out, 'V', 4)}</td><td class="num mono">${fmtPct((c.out / vo - 1) * 100)}</td></tr>`).join('')}</tbody></table>` : '');
-  },
-  led() {
-    const vs = V('led-vs'), vf = V('led-vf'), If = V('led-if'), n = Math.max(1, Math.round(V('led-n') || 1));
-    if (!(vs > 0 && vf > 0 && If > 0)) return errMsg('Enter supply voltage, forward voltage and target current.');
-    const drop = vs - n * vf;
-    if (drop <= 0) return errMsg(`${n} LED${n > 1 ? 's' : ''} at ${vf} V need more than ${fmtEng(n * vf, 'V')}. Raise the supply or use fewer LEDs in series.`);
-    const r = drop / If, rs = snap(r, state.series, 'up'), ia = drop / rs, pr = ia * ia * rs;
-    return dl([
-      ['Exact R', fmtEng(r, 'Ω')],
-      [`${state.series} value (rounded up)`, fmtEng(rs, 'Ω'), true],
-      ['Actual current', fmtEng(ia, 'A')],
-      ['Resistor power', fmtEng(pr, 'W')],
-      ['Resistor rating (2× margin)', fmtEng(ratingFor(pr) || 10, 'W')],
-      ['Power per LED', fmtEng(ia * vf, 'W')]
-    ]) + partBlock(rs, state.series) + `<p class="note">Rounding up keeps the current at or below the target. Most 5 mm indicator LEDs are rated 20 mA continuous.</p>`;
+    const v = V('res-v'), tol = +$('res-tol').value;
+    const bands = v > 0 && colorBands(v, tol);
+    if (!bands) return errMsg('Enter a resistance between 0.1 Ω and 99 GΩ, such as 4.7k or 220.');
+    const nd = tol <= 2 ? 3 : 2;
+    const digits = +bands.slice(0, nd).map(b => BAND.indexOf(b)).join('');
+    const mb = bands[nd], mult = mb === GOLD ? -1 : mb === SILVER ? -2 : BAND.indexOf(mb);
+    const shown = digits * Math.pow(10, mult);
+    const rounded = Math.abs(shown / v - 1) > 1e-6;
+    const colorRows = BAND.map((b, i) => `<tr><td><span class="swatch" style="background:${b.h}"></span>${b.n}</td><td class="num mono">${i}</td><td class="num mono">×${fmtEng(Math.pow(10, i), '', 3).replace(' ', '')}</td><td class="num mono">${{ 1: '±1%', 2: '±2%' }[i] || ''}</td></tr>`).join('') +
+      `<tr><td><span class="swatch" style="background:${GOLD.h}"></span>gold</td><td></td><td class="num mono">×0.1</td><td class="num mono">±5%</td></tr><tr><td><span class="swatch" style="background:${SILVER.h}"></span>silver</td><td></td><td class="num mono">×0.01</td><td class="num mono">±10%</td></tr>`;
+    return `<div class="rvis">${resistorPic(shown, tol)}</div>` + dl([
+      ['Bands', bands.map(b => b.n).join(' · '), true],
+      ['Value', fe(shown, 'Ω')],
+      ['Measures between', `${fe(shown * (1 - tol / 100), 'Ω')} and ${fe(shown * (1 + tol / 100), 'Ω')}`]
+    ]) + work([`${bands.slice(0, nd).map(b => b.n).join(', ')} → ${digits}`, `${mb.n} → × 10^${mult} → ${digits} × ${g4(Math.pow(10, mult))} = ${fe(shown, 'Ω')}`]) +
+      (rounded ? `<p class="note">Rounded: ${nd} digit bands can only show ${fe(shown, 'Ω')}, not ${fe(v, 'Ω')}.</p>` : '') +
+      `<details><summary class="small muted">Color chart</summary><div class="tablewrap"><table><thead><tr><th>Color</th><th class="num">Digit</th><th class="num">Multiplier</th><th class="num">Tolerance</th></tr></thead><tbody>${colorRows}</tbody></table></div></details>`;
   },
   sp() {
     const t = $('sp-type').value;
     const vals = $('sp-list').value.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean).map(parseEng);
-    if (!vals.length || vals.some(v => !(v > 0))) return errMsg('List positive values separated by commas, for example 1k, 2.2k, 4.7k.');
+    if (!vals.length || vals.some(v => !(v > 0))) return errMsg('List positive values separated by commas, for example 3k, 6k.');
+    const unit = { R: 'Ω', C: 'F', L: 'H' }[t], X = t;
     const sum = vals.reduce((a, b) => a + b, 0), inv = 1 / vals.reduce((a, b) => a + 1 / b, 0);
-    const unit = { R: 'Ω', C: 'F', L: 'H' }[t];
     const series = t === 'C' ? inv : sum, parallel = t === 'C' ? sum : inv;
-    const ser = t === 'R' ? state.series : 'E12';
-    return dl([
-      ['Values', vals.map(v => fmtEng(v, unit)).join(', ')],
-      ['Series', fmtEng(series, unit, 4), true],
-      ['Parallel', fmtEng(parallel, unit, 4), true],
-      [`Nearest single ${ser} part (series)`, fmtEng(snap(series, ser), unit)],
-      [`Nearest single ${ser} part (parallel)`, fmtEng(snap(parallel, ser), unit)]
-    ]) + `<p class="note">${t === 'C' ? 'Capacitors add in parallel and combine as reciprocals in series.' : 'Assumes no mutual coupling between parts.'}</p>`;
+    const list = vals.map(v => fe(v, unit));
+    const addStep = `${X}T = ${list.join(' + ')} = ${fe(sum, unit)}`;
+    const recStep = vals.length === 2
+      ? `${X}T = (${list[0]} × ${list[1]}) / (${list[0]} + ${list[1]}) = ${fe(inv, unit)}`
+      : `1/${X}T = ${list.map(v => '1/' + v).join(' + ')} → ${X}T = ${fe(inv, unit)}`;
+    return dl([['Series', fe(series, unit), true], ['Parallel', fe(parallel, unit), true]]) +
+      work([`Series: ${t === 'C' ? recStep : addStep}`, `Parallel: ${t === 'C' ? addStep : recStep}`]) +
+      `<p class="note">${t === 'C' ? 'Capacitors are the other way round: they add in parallel and combine as reciprocals in series.' : 'Check: the parallel total is always smaller than the smallest branch.'}</p>`;
+  },
+  div() {
+    const vs = V('div-vs'), r1 = V('div-r1'), r2 = V('div-r2'), rlv = $('div-rl').value.trim(), rl = rlv ? parseEng(rlv) : null;
+    if (!(isFinite(vs) && r1 > 0 && r2 > 0)) return errMsg('Enter VS, R1 and R2.');
+    if (rlv && !(rl > 0)) return errMsg('Load RL must be a positive value, or leave it blank.');
+    const vo = vs * r2 / (r1 + r2);
+    const rows = [['Vout, no load', fe(vo, 'V'), !rl]];
+    const steps = [`Vout = ${fe(vs, 'V')} × ${fe(r2, 'Ω')} / (${fe(r1, 'Ω')} + ${fe(r2, 'Ω')}) = ${fe(vo, 'V')}`];
+    if (rl) {
+      const rp = r2 * rl / (r2 + rl), vl = vs * rp / (r1 + rp);
+      rows.push(['Vout with load', fe(vl, 'V'), true], ['Drop from loading', `${fe(vo - vl, 'V')} (${g4((1 - vl / vo) * 100)}%)`], ['Current from VS', fe(vs / (r1 + rp), 'A')]);
+      steps.push(`R2 ∥ RL = (${fe(r2, 'Ω')} × ${fe(rl, 'Ω')}) / (${fe(r2, 'Ω')} + ${fe(rl, 'Ω')}) = ${fe(rp, 'Ω')}`,
+        `Vout = ${fe(vs, 'V')} × ${fe(rp, 'Ω')} / (${fe(r1, 'Ω')} + ${fe(rp, 'Ω')}) = ${fe(vl, 'V')}`);
+    } else rows.push(['Current from VS', fe(vs / (r1 + r2), 'A')]);
+    return dl(rows) + work(steps) + (rl ? `<p class="note">The load in parallel lowers the bottom resistance, so the bottom gets a smaller share of VS. A buffer (op-amp follower) between the divider and the load keeps Vout at ${fe(vo, 'V')}.</p>` : '');
   },
   tau() {
     const t = $('tau-type').value;
@@ -1605,15 +1284,62 @@ const calcs = {
     const tReach = pc > 0 && pc < 100 ? -tau * Math.log(1 - pc / 100) : NaN;
     const qty = t === 'RC' ? 'Vc' : 'IL';
     const fin = t === 'RC' ? vs : vs / r, u = t === 'RC' ? 'V' : 'A';
-    const rows = [['τ', fmtEng(tau, 's'), true], [`Time to ${pc}%`, fmtEng(tReach, 's')], ['Settled (5τ, 99.3%)', fmtEng(5 * tau, 's')]];
-    const tbl = `<table class="pairs"><thead><tr><th>t</th><th class="num">Charge</th><th class="num">${qty}</th></tr></thead><tbody>${[1, 2, 3, 4, 5].map(n => `<tr><td class="mono">${n}τ = ${fmtEng(n * tau, 's')}</td><td class="num mono">${((1 - Math.exp(-n)) * 100).toFixed(1)}%</td><td class="num mono">${fmtEng(fin * (1 - Math.exp(-n)), u)}</td></tr>`).join('')}</tbody></table>`;
+    const rows = [['τ', fe(tau, 's'), true], [`Time to ${pc}%`, fe(tReach, 's')], ['Settled (5τ, 99.3%)', fe(5 * tau, 's')]];
+    const tbl = `<table class="pairs"><thead><tr><th>t</th><th class="num">Charge</th><th class="num">${qty}</th></tr></thead><tbody>${[1, 2, 3, 4, 5].map(n => `<tr><td class="mono">${n}τ = ${fe(n * tau, 's')}</td><td class="num mono">${((1 - Math.exp(-n)) * 100).toFixed(1)}%</td><td class="num mono">${fe(fin * (1 - Math.exp(-n)), u)}</td></tr>`).join('')}</tbody></table>`;
     const W = 300, H = 110, l = 30, b = 18;
     const fx = k => l + k / 5 * (W - l - 8), fy = y => 6 + (1 - y) * (H - 6 - b);
     let path = ''; for (let k = 0; k <= 100; k++) { const tt = k / 20; path += (k ? 'L' : 'M') + fx(tt).toFixed(1) + ' ' + fy(1 - Math.exp(-tt)).toFixed(1); }
     let g = ''; for (let n = 0; n <= 5; n++) g += `<line x1="${fx(n)}" y1="6" x2="${fx(n)}" y2="${H - b}" stroke="var(--grid)"/><text x="${fx(n)}" y="${H - 5}" text-anchor="middle">${n}τ</text>`;
     for (const y of [0, 0.632, 1]) g += `<line x1="${l}" y1="${fy(y)}" x2="${W - 8}" y2="${fy(y)}" stroke="var(--grid)"/><text x="${l - 4}" y="${fy(y) + 3}" text-anchor="end">${Math.round(y * 100)}%</text>`;
     const chart = `<div class="chart"><svg viewBox="0 0 ${W} ${H}">${g}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="${fx(1)}" cy="${fy(0.632)}" r="3" fill="var(--accent)"/></svg></div>`;
-    return dl(rows) + chart + tbl;
+    return dl(rows) + work([t === 'RC' ? `τ = R × C = ${fe(r, 'Ω')} × ${fe(x, 'F')} = ${fe(tau, 's')}` : `τ = L / R = ${fe(x, 'H')} / ${fe(r, 'Ω')} = ${fe(tau, 's')}`]) + chart + tbl;
+  },
+  sine() {
+    const kind = $('sine-kind').value, v = V('sine-v'), tk = $('sine-tkind').value, tv = V('sine-t');
+    $('sine-tl').firstChild.textContent = tk === 'f' ? 'Value (Hz)' : 'Value (s)';
+    if (!(v > 0 && tv > 0)) return errMsg('Enter a voltage and a frequency or period above zero.');
+    const vp = kind === 'p' ? v : kind === 'pp' ? v / 2 : v * Math.SQRT2;
+    const f = tk === 'f' ? tv : 1 / tv;
+    const steps = [
+      kind === 'pp' ? `Vp = Vpp / 2 = ${fe(v, 'V')} / 2 = ${fe(vp, 'V')}` : kind === 'rms' ? `Vp = Vrms / 0.707 = ${fe(v, 'V')} / 0.707 = ${fe(vp, 'V')}` : null,
+      kind !== 'pp' ? `Vpp = 2 × Vp = ${fe(2 * vp, 'V')}` : null,
+      kind !== 'rms' ? `Vrms = 0.707 × Vp = 0.707 × ${fe(vp, 'V')} = ${fe(vp * Math.SQRT1_2, 'V')}` : null,
+      tk === 'f' ? `T = 1 / f = 1 / ${fe(f, 'Hz')} = ${fe(1 / f, 's')}` : `f = 1 / T = 1 / ${fe(tv, 's')} = ${fe(f, 'Hz')}`,
+      `ω = 2πf = 2π × ${fe(f, 'Hz')} = ${g4(2 * Math.PI * f)} rad/s`
+    ];
+    // two cycles of the wave, labelled the way a scope screen shows it
+    const W = 300, H = 110, l = 30, b = 18, mid = (H - b + 6) / 2, amp = (H - b - 6) / 2 - 4;
+    const fx = k => l + k / 2 * (W - l - 8);
+    let path = ''; for (let k = 0; k <= 120; k++) { const tt = k / 60; path += (k ? 'L' : 'M') + fx(tt).toFixed(1) + ' ' + (mid - amp * Math.sin(2 * Math.PI * tt)).toFixed(1); }
+    let g = `<line x1="${l}" y1="${mid}" x2="${W - 8}" y2="${mid}" stroke="var(--grid)"/>`;
+    for (const y of [1, Math.SQRT1_2, -1]) g += `<line x1="${l}" y1="${mid - amp * y}" x2="${W - 8}" y2="${mid - amp * y}" stroke="var(--grid)" stroke-dasharray="${y === 1 || y === -1 ? '' : '3 3'}"/><text x="${l - 4}" y="${mid - amp * y + 3}" text-anchor="end">${y === 1 ? '+Vp' : y === -1 ? '−Vp' : ''}</text>`;
+    for (const n of [0, 1, 2]) g += `<line x1="${fx(n)}" y1="6" x2="${fx(n)}" y2="${H - b}" stroke="var(--grid)"/><text x="${fx(n)}" y="${H - 5}" text-anchor="middle">${n ? n + 'T' : '0'}</text>`;
+    const chart = `<div class="chart"><svg viewBox="0 0 ${W} ${H}">${g}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg></div>`;
+    return dl([
+      ['Peak Vp', fe(vp, 'V'), kind !== 'p'], ['Peak-to-peak Vpp', fe(2 * vp, 'V'), kind !== 'pp'], ['RMS Vrms', fe(vp * Math.SQRT1_2, 'V'), kind !== 'rms'],
+      ['Frequency f', fe(f, 'Hz'), tk !== 'f'], ['Period T', fe(1 / f, 's'), tk === 'f'], ['ω', g4(2 * Math.PI * f) + ' rad/s']
+    ]) + work(steps) + chart + '<p class="note">The dashed line is the rms level. A DMM on AC volts reads Vrms. On the scope, read Vpp from the screen and T from one full cycle.</p>';
+  },
+  ph() {
+    const dir = $('ph-dir').value, x1 = V('ph-1'), x2 = V('ph-2');
+    $('ph-l1').firstChild.textContent = dir === 'r2p' ? 'Real part a' : 'Magnitude M';
+    $('ph-l2').firstChild.textContent = dir === 'r2p' ? 'Imaginary part b' : 'Angle θ (°)';
+    if (!isFinite(x1) || !isFinite(x2)) return errMsg('Enter two numbers, for example −3 and 4.');
+    const rect = (a, b) => `${g4(a)} ${b < 0 ? '−' : '+'} j${g4(Math.abs(b))}`;
+    const note = '<p class="note">Add and subtract in rectangular form; multiply and divide in polar form. Keep your calculator in degree mode.</p>';
+    if (dir === 'p2r') {
+      const m = x1, th = x2, a = m * Math.cos(th * Math.PI / 180), b = m * Math.sin(th * Math.PI / 180);
+      return dl([['Rectangular', rect(a, b), true], ['Polar', `${g4(m)} ∠ ${g4(th)}°`]]) +
+        work([`a = M·cos θ = ${g4(m)} × cos(${g4(th)}°) = ${g4(a)}`, `b = M·sin θ = ${g4(m)} × sin(${g4(th)}°) = ${g4(b)}`]) + note;
+    }
+    const a = x1, b = x2;
+    if (a === 0 && b === 0) return dl([['Polar', '0 ∠ 0°', true]]);
+    const m = Math.hypot(a, b), th = Math.atan2(b, a) * 180 / Math.PI;
+    const raw = a === 0 ? (b > 0 ? 90 : -90) : Math.atan(b / a) * 180 / Math.PI;
+    const quad = a >= 0 ? (b >= 0 ? 'I' : 'IV') : (b >= 0 ? 'II' : 'III');
+    const fix = a >= 0 ? 'use as-is' : b >= 0 ? `${g4(raw)}° + 180° = ${g4(th)}°` : `${g4(raw)}° − 180° = ${g4(th)}°`;
+    return dl([['Polar', `${g4(m)} ∠ ${g4(th)}°`, true], ['Rectangular', rect(a, b)], ['Quadrant', `${quad} (a ${a < 0 ? '−' : '+'}, b ${b < 0 ? '−' : '+'})`]]) +
+      work([`M = √(a² + b²) = √(${sq(a)} + ${sq(b)}) = ${g4(m)}`, `tan⁻¹(b / a) = tan⁻¹(${g4(b)} / ${g4(a)}) = ${g4(raw)}°`, `Quadrant ${quad}: ${fix}`]) + note;
   },
   z() {
     const top = $('z-top').value, f = V('z-f');
@@ -1625,108 +1351,52 @@ const calcs = {
     const w = 2 * Math.PI * f, XL = L ? w * L : null, XC = C ? 1 / (w * C) : null;
     let Z;
     if (top === 'series') Z = [R || 0, (XL || 0) - (XC || 0)];
-    else { let Y = [R ? 1 / R : 0, (C ? w * C : 0) - (L ? 1 / (w * L) : 0)]; Z = cdiv([1, 0], Y); }
+    else { const Y = [R ? 1 / R : 0, (C ? w * C : 0) - (L ? 1 / (w * L) : 0)]; Z = cdiv([1, 0], Y); }
     const mag = cabs(Z), ph = cdeg(Z);
     const rows = [];
-    if (XL !== null) rows.push(['XL', fmtEng(XL, 'Ω')]);
-    if (XC !== null) rows.push(['XC', fmtEng(XC, 'Ω')]);
-    rows.push(['Z (rectangular)', `${fmtEng(Z[0], 'Ω')} ${Z[1] < 0 ? '−' : '+'} j${fmtEng(Math.abs(Z[1]), 'Ω')}`]);
-    rows.push(['Z (polar)', `${fmtEng(mag, 'Ω')} ∠ ${fmtNum(ph, 2)}°`, true]);
+    if (XL !== null) rows.push(['XL', fe(XL, 'Ω')]);
+    if (XC !== null) rows.push(['XC', fe(XC, 'Ω')]);
+    rows.push(['Z (rectangular)', `${fe(Z[0], 'Ω')} ${Z[1] < 0 ? '−' : '+'} j${fe(Math.abs(Z[1]), 'Ω')}`]);
+    rows.push(['Z (polar)', `${fe(mag, 'Ω')} ∠ ${fmtNum(ph, 2)}°`, true]);
     rows.push(['Power factor', `${Math.abs(Math.cos(ph * Math.PI / 180)).toFixed(3)} ${Math.abs(ph) < 0.01 ? '(resistive)' : ph > 0 ? 'lagging (inductive)' : 'leading (capacitive)'}`]);
-    if (L && C) {
-      const f0 = 1 / (2 * Math.PI * Math.sqrt(L * C));
-      rows.push(['Resonant f0', fmtEng(f0, 'Hz')]);
-      if (R) rows.push(['Q', (top === 'series' ? Math.sqrt(L / C) / R : R * Math.sqrt(C / L)).toFixed(3)]);
-    }
+    if (L && C) rows.push(['Resonant f0', fe(1 / (2 * Math.PI * Math.sqrt(L * C)), 'Hz')]);
+    const steps = [
+      XL !== null ? `XL = 2πfL = 2π × ${fe(f, 'Hz')} × ${fe(L, 'H')} = ${fe(XL, 'Ω')}` : null,
+      XC !== null ? `XC = 1 / (2πfC) = 1 / (2π × ${fe(f, 'Hz')} × ${fe(C, 'F')}) = ${fe(XC, 'Ω')}` : null,
+      top === 'series' ? `Z = R + j(XL − XC) = ${g4(Z[0])} ${Z[1] < 0 ? '−' : '+'} j${g4(Math.abs(Z[1]))} Ω` : null,
+      top === 'series' ? `|Z| = √(R² + X²) = ${fe(mag, 'Ω')}, θ = tan⁻¹(X / R) = ${fmtNum(ph, 2)}°` : null
+    ];
     // phasor diagram of Z
     const S = 150, c0 = S / 2, sc = (S / 2 - 14) / Math.max(mag, 1e-30);
     const ex = c0 + Z[0] * sc, ey = c0 - Z[1] * sc;
     const dia = `<div class="chart"><svg style="width:180px;max-width:100%" viewBox="0 0 ${S} ${S}"><line x1="8" y1="${c0}" x2="${S - 8}" y2="${c0}" stroke="var(--grid)"/><line x1="${c0}" y1="8" x2="${c0}" y2="${S - 8}" stroke="var(--grid)"/><text x="${S - 8}" y="${c0 - 4}" text-anchor="end">Re</text><text x="${c0 + 4}" y="14">+jX</text>
       <line x1="${c0}" y1="${c0}" x2="${ex}" y2="${c0}" stroke="var(--muted)" stroke-dasharray="3 2"/><line x1="${ex}" y1="${c0}" x2="${ex}" y2="${ey}" stroke="var(--muted)" stroke-dasharray="3 2"/>
       <line x1="${c0}" y1="${c0}" x2="${ex}" y2="${ey}" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/><circle cx="${ex}" cy="${ey}" r="3.5" fill="var(--accent)"/></svg></div>`;
-    return dl(rows) + dia;
-  },
-  filt() {
-    const t = $('f-type').value, rc = t.startsWith('RC'), lp = t.endsWith('LP');
-    $('f-xl').firstChild.textContent = rc ? 'C you have (F)' : 'L you have (H)';
-    const fc = V('f-fc'), x = V('f-x'), ft = V('f-test');
-    if (!(fc > 0 && x > 0)) return errMsg('Enter the cutoff and the ' + (rc ? 'capacitor' : 'inductor') + ' value.');
-    const r = rc ? 1 / (2 * Math.PI * fc * x) : 2 * Math.PI * fc * x;
-    const rs = snap(r, state.series), fa = rc ? 1 / (2 * Math.PI * rs * x) : rs / (2 * Math.PI * x);
-    const rows = [['Exact R', fmtEng(r, 'Ω')], [`${state.series} R`, fmtEng(rs, 'Ω'), true], ['Actual fc', `${fmtEng(fa, 'Hz', 4)} (${fmtPct(pct(fa, fc))})`]];
-    if (ft > 0) {
-      const u = ft / fa, H = lp ? cdiv([1, 0], [1, u]) : cdiv([0, u], [1, u]);
-      rows.push([`At ${fmtEng(ft, 'Hz')}`, `${(20 * Math.log10(cabs(H))).toFixed(2)} dB ∠ ${fmtNum(cdeg(H), 1)}°`]);
-    }
-    rows.push(['Roll-off', '−20 dB/decade (−6 dB/octave)']);
-    return dl(rows) + `<p class="note">${lp ? 'Output across the ' + (rc ? 'capacitor' : 'resistor') : 'Output across the ' + (rc ? 'resistor' : 'inductor')}. Assumes the load is much larger than R.</p>`;
-  },
-  cap() {
-    const s = $('cap-in').value.trim();
-    let f, code;
-    if (/^\d{3}$/.test(s)) { f = capCodeDecode(s); code = s; }
-    else { f = parseEng(s); code = capCodeEncode(f); }
-    if (!(f > 0)) return errMsg('Enter a 3-digit code like 104, or a value like 4.7n or 10u.');
-    return dl([
-      ['Code', code, true],
-      ['Value', fmtEng(f, 'F')],
-      ['In pF / nF / µF', `${+(f / 1e-12).toPrecision(4)} / ${+(f / 1e-9).toPrecision(4)} / ${+(f / 1e-6).toPrecision(4)}`],
-      ['Nearest E6 / E12', `${fmtEng(snap(f, 'E6'), 'F')} / ${fmtEng(snap(f, 'E12'), 'F')}`]
-    ]) + `<p class="note">The first two digits are significant figures and the third is the number of zeros in picofarads. A trailing letter is the tolerance (J ±5%, K ±10%, M ±20%).</p>`;
+    return dl(rows) + work(steps) + dia;
   }
 };
 function runCalcs() {
   for (const [k, fn] of Object.entries(calcs)) {
-    const out = $({ ohm: 'ohm-out', res: 'res-out', div: 'div-out', led: 'led-out', sp: 'sp-out', tau: 'tau-out', z: 'z-out', filt: 'f-out', cap: 'cap-out' }[k]);
+    const out = $(k + '-out');
     try { out.innerHTML = fn(); } catch (err) { out.innerHTML = errMsg('Could not compute with these inputs.'); }
   }
 }
-$('led-color').innerHTML = Object.entries(LED_TYPES).map(([k, t]) => `<option value="${k}">${t.label}</option>`).join('');
-$('led-color').addEventListener('change', e => { $('led-vf').value = LED_TYPES[e.target.value].vf.toFixed(1); });
 $('calcgrid').addEventListener('input', runCalcs);
 $('calcgrid').addEventListener('change', runCalcs);
 
-/* ===================== Reference ===================== */
-function renderRef() {
-  const etab = (s, cols) => {
-    const v = E_BASE[s]; let rows = '';
-    for (let i = 0; i < v.length; i += cols) rows += '<tr>' + v.slice(i, i + cols).map(x => `<td>${x.toFixed(s === 'E6' || s === 'E12' || s === 'E24' ? 1 : 2)}</td>`).join('') + '</tr>';
-    return `<div class="tablewrap"><table class="etable">${rows}</table></div>`;
-  };
-  const colorRows = BAND.map((b, i) => `<tr><td><span class="swatch" style="background:${b.h}"></span>${b.n}</td><td class="num mono">${i}</td><td class="num mono">×${fmtEng(Math.pow(10, i), '', 3).replace(' ', '')}</td><td class="num mono">${{ 1: '±1%', 2: '±2%', 5: '±0.5%', 6: '±0.25%', 7: '±0.1%' }[i] || ''}</td></tr>`).join('') +
-    `<tr><td><span class="swatch" style="background:${GOLD.h}"></span>gold</td><td></td><td class="num mono">×0.1</td><td class="num mono">±5%</td></tr><tr><td><span class="swatch" style="background:${SILVER.h}"></span>silver</td><td></td><td class="num mono">×0.01</td><td class="num mono">±10%</td></tr><tr><td>no band</td><td></td><td></td><td class="num mono">±20%</td></tr>`;
-  $('refgrid').innerHTML = `
-    <section class="panel"><h2>Resistor color code</h2><p class="note" style="margin-bottom:8px">IEC 60062. Four bands: 2 digits, multiplier, tolerance. Five bands: 3 digits, multiplier, tolerance.</p><div class="tablewrap"><table><thead><tr><th>Color</th><th class="num">Digit</th><th class="num">Multiplier</th><th class="num">Tolerance</th></tr></thead><tbody>${colorRows}</tbody></table></div></section>
-    <section class="panel"><h2>E12 and E24</h2><p class="note">IEC 60063 preferred numbers per decade. Multiply by 1, 10, 100… E24 covers ±5% parts, the usual hobby and lab stock.</p><div class="eyebrow" style="margin-top:8px">E12 · ±10%</div>${etab('E12', 6)}<div class="eyebrow" style="margin-top:8px">E24 · ±5%</div>${etab('E24', 6)}</section>
-    <section class="panel"><h2>E96</h2><p class="note">±1% metal film. Each value's position (01–96) is its EIA-96 SMD code.</p>${etab('E96', 8)}</section>
-    <section class="panel"><h2>Standard ratings</h2><dl class="res"><dt>Through-hole resistor power</dt><dd>⅛, ¼, ½, 1, 2, 3, 5 W</dd><dt>Design margin</dt><dd>dissipate ≤ 50% of rating</dd><dt>Capacitor voltages</dt><dd>6.3, 10, 16, 25, 35, 50, 63, 100 V</dd><dt>5 mm LED current</dt><dd>20 mA continuous</dd><dt>Breadboard pitch</dt><dd>2.54 mm (0.1 in)</dd><dt>Breadboard contacts</dt><dd>about 1 A, 22–20 AWG wire</dd></dl></section>
-    <section class="panel" style="grid-column:1/-1"><h2>Standards this tool follows</h2><ul class="std">
-      <li><b>IEC 60063:2015</b> preferred number series E3 to E192 for resistors and capacitors. Values snap to the series chosen at the top of the page, including the 9.20 exception in E192.</li>
-      <li><b>IEC 60062:2016</b> marking codes: resistor color bands, RKM letter-and-digit codes such as 4k7 and 2R2, and 3-digit capacitor codes.</li>
-      <li><b>IEC 60617</b> and <b>IEEE 315</b> graphic symbols. Switch between the rectangular (IEC) and zigzag (IEEE) resistor with the Symbols control.</li>
-      <li><b>EIA-96</b> (now in IEC 60062) for 1% SMD resistor markings.</li>
-      <li><b>SPICE netlist syntax</b> as used by LTspice, so a board can be opened there for transient and parametric runs.</li>
-    </ul><p class="note" style="margin-top:10px">The solver is modified nodal analysis with Newton–Raphson for the nonlinear parts, falling back to source stepping and gmin stepping like SPICE does. Diodes and LEDs use the Shockley equation with series resistance, transistors a simplified Gummel–Poon (BJT) and square-law (MOSFET) model, op-amps a rail-limited gain stage with a single GBW pole, and regulators a reference with dropout and current limit. These match datasheet typicals; use LTspice with vendor models for temperature, transient and worst-case work.</p></section>
-    <section class="panel" style="grid-column:1/-1"><h2>Parts library</h2><p class="note" style="margin-bottom:8px">${CATALOG.length} parts. Ratings are the datasheet absolute maximums the readings check against.</p><div class="tablewrap"><table><thead><tr><th>Part</th><th>Description</th><th>Package</th><th>Pins (left to right / 1–8)</th><th>Key specs</th></tr></thead><tbody>${CATALOG.map(c => `<tr><td class="mono">${esc(c.mpn)}</td><td>${esc(c.name)}</td><td class="mono small">${esc(c.pkg)}</td><td class="mono small">${c.pins ? esc(c.pins.join(' ')) : '—'}</td><td class="small">${esc(c.spec)}</td></tr>`).join('')}</tbody></table></div></section>`;
-}
-
-/* ===================== tabs & settings ===================== */
+/* ===================== tabs ===================== */
 function setTab(t) {
   state.tab = t;
-  for (const v of ['board', 'calc', 'ref']) { $('view-' + v).hidden = v !== t; $('tab-' + v).setAttribute('aria-selected', v === t); }
+  for (const v of ['board', 'calc']) { $('view-' + v).hidden = v !== t; $('tab-' + v).setAttribute('aria-selected', v === t); }
   try { history.replaceState(null, '', '#' + t); } catch (e) {}
 }
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); });
-$('series').addEventListener('change', e => { state.series = e.target.value; runCalcs(); renderBoardView(); });
-$('symstyle').addEventListener('change', e => { state.sym = e.target.value; renderPalette(); renderBoardView(); });
 
 /* ===================== boot ===================== */
-$('series').value = state.series;
-$('symstyle').value = state.sym;
 $('showv').checked = state.showV;
 $('freq').value = fmtEng(state.freq, '').replace(' ', '');
-drawBase(); renderPalette(); renderBoardView(); runCalcs(); renderRef();
-setTab(['board', 'calc', 'ref'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'board');
+drawBase(); renderPalette(); renderBoardView(); runCalcs();
+setTab(location.hash.slice(1) === 'calc' ? 'calc' : 'board');
 </script>
 </body>
 </html>

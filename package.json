@@ -2,7 +2,7 @@
   "name": "breadboard-bench",
   "version": "0.1.0",
   "private": true,
-  "description": "Circuit calculators and a breadboard DC/AC solver that work in real, purchasable parts.",
+  "description": "ELT 1206 study bench: breadboard DC/AC solver, sample circuits and calculators with worked steps.",
   "scripts": {
     "test": "node --test tests/engine.test.js tests/devices.test.js"
   }
