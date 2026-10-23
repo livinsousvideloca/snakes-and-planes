@@ -297,13 +297,13 @@ function diodeI(v, m) {
   }
   return (v - vj) / m.Rs;
 }
-function opampI(v, c) { // v = array of 8 pin voltages
+function opampI(v, c, gs = 1) { // v = array of 8 pin voltages; gs scales the open-loop gain
   const m = c.model, I = new Array(8).fill(0), units = [];
   const vhi = v[c.vp] - m.headHi, vlo = v[c.vn] + m.headLo;
   const vc = (vhi + vlo) / 2, vh = Math.max((vhi - vlo) / 2, 0.01);
   const powered = 0.5 * (1 + Math.tanh((v[c.vp] - v[c.vn] - 1) / 0.1)); // an unpowered chip does not drive its output
   for (const u of c.units) {
-    const T = vc + vh * Math.tanh(m.A0 * (v[u.inp] - v[u.inn]) / vh);
+    const T = vc + vh * Math.tanh(gs * m.A0 * (v[u.inp] - v[u.inn]) / vh);
     const io = powered * m.Ilim * Math.tanh((v[u.out] - T) / m.Ro / m.Ilim);
     const s = 0.5 * (1 + Math.tanh(-io / 1e-3));
     I[u.out] += io; I[c.vp] += -io * s; I[c.vn] += -io * (1 - s);
@@ -328,7 +328,9 @@ function makeDevice(p) {
   if (p.type === 'OPAMP') {
     const inputs = new Set(cat.units.flatMap(u => [u.inp, u.inn]));
     // small-signal step: with ~1e5 open-loop gain a 1e-7 V input step swings the output across the supply-split knee
-    return { pins: p.pins, f: v => opampI(v, cat), acCols: inputs, fp: cat.model.GBW / cat.model.A0, hAC: 1e-11 };
+    const d = { pins: p.pins, acCols: inputs, fp: cat.model.GBW / cat.model.A0, hAC: 1e-11, gs: 1 };
+    d.f = v => opampI(v, cat, d.gs);
+    return d;
   }
   if (p.type === 'VDC' && p.iLimit > 0) {
     return { pins: [p.a, p.b], f: (v, lam = 1) => { const i = limitedSupplyI(v[0] - v[1], Object.assign({}, p, { value: p.value * lam })); return [i, -i]; } };
@@ -495,6 +497,21 @@ function warmStart(topo, ctx) {
 function solveDC(topo, ctx, noWarm) {
   let r = newtonDC(topo, ctx, 1, 0, null, 150);
   if (r.ok) return Object.assign(r, { method: 'Newton–Raphson' });
+  // op-amp gain stepping: solve with a tiny open-loop gain, where feedback loops are tame, then raise it
+  // to the real value. Followers and chains of op-amps converge this way when plain Newton swings rail to rail.
+  const amps = ctx.devices.filter(d => d.part.type === 'OPAMP');
+  if (amps.length) {
+    // adaptive: a step that fails is retried from the last good point at half the size
+    let xg = null, e = -6, step = 0.5, ok = false;
+    for (let guard = 0; guard < 200; guard++) {
+      amps.forEach(d => { d.gs = Math.pow(10, e); });
+      const s = newtonDC(topo, ctx, 1, 0, xg, 150);
+      if (s.ok) { xg = s.x; if (e >= 0) { ok = true; break; } e = Math.min(0, e + step); step = Math.min(0.5, step * 1.5); }
+      else { if (!xg || step < 1 / 256) break; e -= step; step /= 2; e += step; }
+    }
+    amps.forEach(d => { d.gs = 1; });
+    if (ok) return { x: xg, ok: true, method: 'op-amp gain stepping' };
+  }
   const x0 = noWarm ? null : warmStart(topo, ctx);
   if (x0) { r = newtonDC(topo, ctx, 1, 0, x0, 150); if (r.ok) return Object.assign(r, { method: 'Newton–Raphson (warm start)' }); }
   // source stepping
@@ -629,7 +646,8 @@ function analyze(parts, opts = {}) {
     }
     if (leads.length > 2) {
       const seen = new Map();
-      leads.forEach((k, q) => { const r = roots[q]; if (seen.has(r)) res.warnings.push(`${p.name}: pins ${seen.get(r)} and ${(catalogOf(p).pins || [])[q]} are on the same strip, so they are shorted together.`); else seen.set(r, (catalogOf(p).pins || [])[q]); });
+      // only pins sharing one physical strip; pins joined on purpose by a jumper (a follower) are fine
+      leads.forEach((k, q) => { const r = baseNetOfHole(k); if (seen.has(r)) res.warnings.push(`${p.name}: pins ${seen.get(r)} and ${(catalogOf(p).pins || [])[q]} are on the same strip, so they are shorted together.`); else seen.set(r, (catalogOf(p).pins || [])[q]); });
     }
     // a dual op-amp with one unit left fully unconnected gets one note instead of three
     const idle = new Set();
@@ -769,7 +787,7 @@ const SAMPLE_CIRCUITS = {
   },
   bridge: {
     label: 'Wheatstone bridge', topic: "Kirchhoff's laws", mode: 'DC',
-    about: 'Two dividers side by side: 1 kΩ / 1 kΩ on the left (column 6), and 1 kΩ over a potentiometer wired as a variable resistor on the right (column 12). The 100 Ω resistor between them stands in for a meter. The pot\'s wiper is jumpered to one end so it acts as a variable resistor, which is why the wiring check notes those two pins are tied together.',
+    about: 'Two dividers side by side: 1 kΩ / 1 kΩ on the left (column 6), and 1 kΩ over a potentiometer wired as a variable resistor on the right (column 12). The 100 Ω resistor between them stands in for a meter. The pot\'s wiper is jumpered to one end so it acts as a variable resistor.',
     expect: 'With the pot at 30% (3 kΩ) the bridge is unbalanced: column 6 sits near 5.9 V and column 12 near 6.1 V, and about 1.9 mA flows through the meter. At 10% (1 kΩ) both sides read 5.00 V and the meter current is zero.',
     try: 'Select the pot (RV1) and drag the wiper slider to 10%. Watch the meter current go to zero. That null is how bridges measure an unknown resistance.',
     steps: [['V-IDEAL', 'TP1', 'TN1', { value: 10 }], ['GND', 'TN2'],
@@ -808,6 +826,24 @@ const SAMPLE_CIRCUITS = {
     steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5 }], ['GND', 'TN2'], ['V-BENCH', 'TN4', 'BN4', { value: 12, iLimit: 0.5 }],
       ['U-LM1458', 'f10'], ['wire', 'a10', 'TP10', { color: W.red }], ['wire', 'j13', 'BN13', { color: W.blue }], ['wire', 'h12', 'TN12', { color: W.black }],
       ['VAC-GEN', 'i7', 'TN7', { value: 0.5 }], ['R-CF', 'g7', 'g11', { value: 1000 }], ['R-CF', 'i10', 'i11', { value: 10000 }]]
+  },
+  adder: {
+    label: 'Op-amp adder (midterm practical, 2 × LM1458)', topic: 'Op-amps', mode: 'DC',
+    about: 'The midterm practical. V1 (the DC supply, 1 V) and V2 (the 3 kΩ / 1 kΩ divider on +12 V, 3 V) each go through a buffer in U1, so the divider is not loaded. U2A is a summing amplifier (R6, R7 in, R8 feedback, all 10 kΩ) and U2B an inverter (R9, R10) that flips the sign back. Both chips run from ±12 V: V+ on pin 8, V− on pin 4. The bottom + rail is tied to ground here, so pins on the lower half can reach 0 V.',
+    expect: 'V2 = 12 × 1k / (3k + 1k) = 3 V. Buffers: VA = 1 V (U1 pin 1), VB = 3 V (U1 pin 7). VSUM = −(R8/R6 × VA + R8/R7 × VB) = −4 V at U2 pin 1, and VOUT = −(R10/R9) × VSUM = +4 V at U2 pin 7.',
+    try: 'Step V1 through 0, 1, 2 and 3.5 V and check VOUT = V1 + 3. Then do part 5: make R8 20 kΩ so VOUT = 2(V1 + V2). At V1 = 1 V that is 8 V, but at 3.5 V the summer would need −13 V, past what an LM1458 can reach on ±12 V, so it clips near −10.4 V and VOUT stops near +10.4 V.',
+    steps: [['V-BENCH', 'TP1', 'TN1', { value: 12, iLimit: 0.5, name: 'VCC' }], ['GND', 'TN2'], ['V-BENCH', 'TN3', 'BN3', { value: 12, iLimit: 0.5, name: 'VEE' }],
+      ['wire', 'TN30', 'BP30', { color: W.black }],
+      // U1: two buffers. V+ (pin 8) to +12 V, V− (pin 4) to −12 V
+      ['U-LM1458', 'f8'], ['wire', 'a8', 'TP8', { color: W.red }], ['wire', 'j11', 'BN11', { color: W.blue }],
+      ['V-BENCH', 'a5', 'TN5', { value: 1, iLimit: 0.5, name: 'V1' }], ['wire', 'd5', 'h10', { color: W.yellow }], ['wire', 'g8', 'g9', { color: W.green }],
+      ['R-CF', 'TP13', 'a13', { value: 3000, name: 'R1' }], ['R-CF', 'c13', 'TN15', { value: 1000, name: 'R2' }], ['wire', 'd13', 'd11', { color: W.yellow }], ['wire', 'd9', 'd10', { color: W.green }],
+      // U2: summing amp (pins 1–3) and inverter (pins 5–7)
+      ['U-LM1458', 'f20'], ['wire', 'a20', 'TP20', { color: W.red }], ['wire', 'j23', 'BN23', { color: W.blue }],
+      ['R-CF', 'i8', 'i16', { value: 10000, name: 'R6' }], ['R-CF', 'b9', 'b16', { value: 10000, name: 'R7' }], ['wire', 'e16', 'f16', { color: W.green }],
+      ['R-CF', 'j16', 'j20', { value: 10000, name: 'R8' }], ['wire', 'h16', 'h21', { color: W.green }], ['wire', 'j22', 'BP22', { color: W.black }],
+      ['R-CF', 'i20', 'i26', { value: 10000, name: 'R9' }], ['wire', 'f26', 'e26', { color: W.green }], ['wire', 'a26', 'a22', { color: W.green }],
+      ['R-CF', 'c26', 'c21', { value: 10000, name: 'R10' }], ['wire', 'b23', 'TN23', { color: W.black }]]
   }
 };
 const SAMPLE_NAME_PREFIX = { R: 'R', C: 'C', L: 'L', LED: 'D', D: 'D', VDC: 'V', VAC: 'V', SW: 'SW', POT: 'RV', OPAMP: 'U' };
@@ -823,7 +859,7 @@ function sampleParts(key) {
     if (c.footprint) p.pins = footprintHoles(c.footprint, a); else { p.a = a; p.b = b; }
     const pre = SAMPLE_NAME_PREFIX[c.type];
     count[pre] = (count[pre] || 0) + 1;
-    p.name = pre + count[pre];
+    if (!(props && props.name)) p.name = pre + count[pre];
     parts.push(p);
   });
   return parts;

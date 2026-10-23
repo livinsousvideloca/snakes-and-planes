@@ -121,7 +121,7 @@ test('every sample circuit solves and matches its write-up', () => {
   const ref = {
     basics: ['U18', 2.85, 2.9], series: ['U5', 7.49, 7.51], seriesparallel: ['U5', 7.99, 8.01], divider: ['U5', 5.99, 6.01],
     twosource: ['U5', 8.1, 8.14], bridge: ['U12', 6.0, 6.2], noninv: ['L10', 5.04, 5.06], opamp: ['L10', -0.01, 0.01],
-    highpass: null, rlc: null
+    highpass: null, rlc: null, adder: null
   };
   for (const [key, s] of Object.entries(E.SAMPLE_CIRCUITS)) {
     assert.ok(s.label && s.about && s.expect && s.try, key);
@@ -135,4 +135,16 @@ test('every sample circuit solves and matches its write-up', () => {
   inRange(ac('highpass', 'L8'), 0.70, 0.72, 'high-pass at fc');
   inRange(ac('rlc', 'L13'), 0.99, 1.0, 'RLC at resonance');
   inRange(ac('opamp', 'L10'), 4.7, 4.8, 'inverting amp');
+  // adder: VSUM = −(V1 + V2) at U2 pin 1, VOUT = V1 + V2 at U2 pin 7, and part 5 clips
+  const adder = (v1, r8) => {
+    const parts = E.sampleParts('adder');
+    parts.find(p => p.name === 'V1').value = v1;
+    if (r8) parts.find(p => p.name === 'R8').value = r8;
+    const r = E.analyze(parts), u2 = parts.find(p => p.name === 'U2');
+    assert.ok(r.ok, r.errors.join());
+    return [r.parts[u2.id].pinV[0][0], r.parts[u2.id].pinV[6][0]];
+  };
+  for (const v1 of [0, 1, 2, 3.5]) { const [vs, vo] = adder(v1); inRange(vs, -(v1 + 3) - 0.01, -(v1 + 3) + 0.01, 'VSUM'); inRange(vo, v1 + 3 - 0.01, v1 + 3 + 0.01, 'VOUT'); }
+  inRange(adder(1, 20000)[1], 7.99, 8.01, 'doubled');
+  inRange(adder(3.5, 20000)[1], 10, 10.6, 'doubled, clipped');
 });
