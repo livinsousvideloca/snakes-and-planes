@@ -196,6 +196,38 @@ tbody tr { cursor: pointer; }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart text { font-family: var(--f-mono); font-size: 10px; fill: var(--muted); }
 
+/* multimeter */
+.meterpanel { display: grid; grid-template-columns: 186px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px; }
+#meter { width: 186px; height: auto; display: block; user-select: none; -webkit-user-select: none; }
+#meter .lit { fill: #1c2016; }
+#meter .unlit { fill: #1c2016; fill-opacity: 0.07; }
+#meter text { font-family: var(--f-display); text-anchor: middle; }
+#meter .m-brand { font-size: 6.5px; letter-spacing: 0.18em; fill: #c9ccd1; }
+#meter .m-ann { font-size: 6.5px; text-anchor: start; font-weight: 700; }
+#meter .m-ann.lit { fill: #1c2016; } #meter .m-ann.unlit { fill: transparent; }
+#meter .m-unit { font-size: 13px; text-anchor: end; fill: #1c2016; font-weight: 700; }
+#meter .m-unit.sm { font-size: 9px; }
+#meter .m-btxt { font-size: 7px; fill: #e8e8e8; font-weight: 600; letter-spacing: 0.04em; pointer-events: none; }
+#meter .m-btn, #meter .m-pos, #meter .m-knob, #meter .m-jack { cursor: pointer; }
+#meter .m-btn:hover rect { filter: brightness(1.35); }
+#meter .m-pos-t { font-size: 10px; fill: #e8e8e8; font-weight: 600; }
+#meter .m-pos-t.cur { fill: #ffd84a; }
+#meter .m-pos:hover .m-pos-t { fill: #fff; }
+#meter .m-alt { font-size: 7px; fill: #f0c419; }
+#meter .m-jl { font-size: 7.5px; fill: #e8e8e8; font-weight: 600; }
+#meter .m-js { font-size: 4.6px; fill: #aeb2b8; }
+#meter .m-js.bad { fill: #ff8a7a; font-size: 5.5px; }
+.meterside { display: grid; gap: 8px; font-size: 13px; }
+.meterside .mfn { margin: 0; font-weight: 600; color: var(--accent-2); }
+.probebtns { display: grid; gap: 6px; }
+.meterside .btn { text-transform: none; letter-spacing: 0.02em; font-family: var(--f-body); }
+.probe { display: flex; align-items: center; gap: 6px; text-align: left; }
+.probe i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.probe.red i { background: #c62f2f; } .probe.black i { background: #111; border: 1px solid #777; }
+.probe[aria-pressed="true"] { border-color: var(--signal); box-shadow: 0 0 0 1px var(--signal); }
+.mwarn { color: var(--warn); }
+#btn-meter[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+
 /* calculators */
 .calcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; align-items: start; }
 .calc { display: grid; gap: 12px; }
@@ -363,6 +395,7 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           <label class="small muted" title="Show node voltages on the board"><input type="checkbox" id="showv" checked> Show voltages</label>
           <span class="grow"></span>
           <select id="sample" aria-label="Sample circuits"></select>
+          <button class="btn sm" id="btn-meter" aria-pressed="true" title="Show or hide the multimeter">Meter</button>
           <button class="btn sm" id="btn-import" title="Build the board from an LTspice netlist or schematic">Import LTspice</button>
           <button class="btn sm" id="btn-copy" title="Copy this board as a SPICE netlist to paste into LTspice">Copy for LTspice</button>
           <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
@@ -379,12 +412,17 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
             <g id="bb-base"></g>
             <g id="bb-volt"></g>
             <g id="bb-parts"></g>
+            <g id="bb-probe" pointer-events="none"></g>
             <g id="bb-ov" pointer-events="none"></g>
           </svg>
         </div>
         <div class="statusbar" id="status">&nbsp;</div>
       </div>
       <aside class="readings-frame" aria-label="Readings">
+        <div class="panel meterpanel" id="meterpanel">
+          <svg id="meter" viewBox="0 0 220 400" aria-label="Multimeter"></svg>
+          <div class="meterside" id="meterside" aria-live="polite"></div>
+        </div>
         <div class="panel about" id="about" hidden></div>
         <div class="panel">
           <div id="summary"></div>
@@ -593,6 +631,8 @@ const state = {
   tab: 'board', tool: 'select', pending: null, hover: null, selected: null,
   parts: [], mode: 'DC', freq: 1000, showV: true, sample: 'basics', draft: null, drafts: {}, about: null
 };
+// the multimeter: dial, yellow-button state, probe holes, red-lead jack and fuses
+const meter = Object.assign({ on: true, fn: 'vdc', shift: false, red: null, black: null, jack: 'V', fuses: { mA: false, A: false } }, (saved && saved.meter) || {});
 // boards saved by earlier versions may hold parts that are no longer in the library
 const known = p => p.type === 'wire' || p.type === 'GND' || (ELEMENT_TYPES.includes(p.type) && (!p.model || CATALOG_BY_ID[p.model]));
 if (saved && Array.isArray(saved.parts)) {
@@ -601,7 +641,7 @@ if (saved && Array.isArray(saved.parts)) {
   if (state.parts.length < saved.parts.length) state.sample = '';
   uid = Math.max(1, ...state.parts.map(p => +String(p.id).slice(1) + 1 || 1));
 } else loadSample('basics');
-function save() { store.set('bb-bench-v3', { parts: state.parts, mode: state.mode, freq: state.freq, showV: state.showV, sample: state.sample, about: state.about }); }
+function save() { store.set('bb-bench-v3', { parts: state.parts, mode: state.mode, freq: state.freq, showV: state.showV, sample: state.sample, about: state.about, meter }); }
 
 /* ---------- board geometry ---------- */
 const P = 18, X0 = 40;
@@ -825,7 +865,8 @@ function renderStatus() {
     } else txt += ' · empty strip';
     if (state.pending) txt += ' · click to place the second lead';
     el.innerHTML = txt;
-  } else if (state.tool === 'GND') el.innerHTML = 'Click a hole to mark it as ground (0 V).';
+  } else if (state.tool.startsWith('probe-')) el.innerHTML = `Click the hole where the ${state.tool.slice(6)} probe tip goes. Esc cancels.`;
+  else if (state.tool === 'GND') el.innerHTML = 'Click a hole to mark it as ground (0 V).';
   else if (state.tool === 'wire') el.innerHTML = state.pending ? 'Click where the other end of the jumper goes. Esc cancels.' : 'Click the hole for one end of the jumper.';
   else if (c) {
     if (c.footprint === 'dip8') el.innerHTML = `Click a column to drop the ${esc(c.mpn)} across the center channel (pin 1 bottom-left).`;
@@ -1050,13 +1091,201 @@ function renderAbout() {
 }
 function renderBoardView() {
   recompute();
-  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); revealSelectedReading();
+  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); renderMeter(); revealSelectedReading();
   $('mode-dc').setAttribute('aria-pressed', state.mode === 'DC');
   $('mode-ac').setAttribute('aria-pressed', state.mode === 'AC');
   $('freqwrap').hidden = state.mode !== 'AC';
   $('sample').value = state.sample || '';
   save();
 }
+
+/* ---------- multimeter: 6000-count true-RMS handheld, laid out like a Fluke 87V ---------- */
+const DIAL = [
+  ['off', 'OFF', ''], ['vac', 'V~', ''], ['vdc', 'V⎓', ''], ['mv', 'mV⎓', '~'],
+  ['ohm', 'Ω', ')))'], ['diode', '→|', '⊣⊢'], ['a', 'mA A', '~'], ['ua', 'µA', '~']
+];
+const DIAL_ANGLE = k => -105 + 30 * k;
+const SHIFTS = { mv: 'mV AC', ohm: 'continuity beeper', diode: 'capacitance', a: 'AC amps', ua: 'AC microamps' };
+const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g', O: 'abcdef', L: 'fed', E: 'afged', A: 'abcefg', d: 'bcdeg', F: 'afge', U: 'bcdef', S: 'afgcd', ' ': '' };
+const mview = { range: null, hold: null, mm: null, stats: null, rel: null, hz: false, beepKey: '', shown: null, reading: null };
+function resetMeterModes() { Object.assign(mview, { range: null, hold: null, mm: null, stats: null, rel: null, hz: false }); }
+function beep() {
+  try {
+    const A = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+    const o = A.createOscillator(), g = A.createGain();
+    o.frequency.value = 2700; g.gain.value = 0.04; o.connect(g).connect(A.destination); o.start(); o.stop(A.currentTime + 0.25);
+  } catch (e) {}
+}
+function hzDisplay(f) {
+  const [v, u] = f >= 1000 ? [f / 1000, 'kHz'] : [f, 'Hz'];
+  const d = v >= 1000 ? 0 : v >= 100 ? 1 : v >= 10 ? 2 : 3;
+  return { text: v.toFixed(d), unit: u, frac: 0, ol: false, neg: false };
+}
+function segDigit(x, y, ch, dp) {
+  const w = 22, h = 42, t = 3.6, on = SEG[ch] || '';
+  const R = {
+    a: [x + 3, y, w - 6, t], b: [x + w - t, y + 3, t, h / 2 - 4.5], c: [x + w - t, y + h / 2 + 1.5, t, h / 2 - 4.5], d: [x + 3, y + h - t, w - 6, t],
+    e: [x, y + h / 2 + 1.5, t, h / 2 - 4.5], f: [x, y + 3, t, h / 2 - 4.5], g: [x + 3, y + h / 2 - t / 2, w - 6, t]
+  };
+  let s = '';
+  for (const k of 'abcdefg') { const [rx, ry, rw, rh] = R[k]; s += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="1.2" class="${on.includes(k) ? 'lit' : 'unlit'}"/>`; }
+  s += `<rect x="${x + w + 2.5}" y="${y + h - t}" width="${t}" height="${t}" rx="0.8" class="${dp ? 'lit' : 'unlit'}"/>`;
+  return s;
+}
+function lcdDigits(text) {
+  const slots = [];
+  for (const ch of text) { if (ch === '.' && slots.length) slots[slots.length - 1].dp = true; else slots.push({ ch, dp: false }); }
+  while (slots.length < 4) slots.unshift({ ch: ' ', dp: false });
+  return slots.slice(-4);
+}
+/* what the LCD shows now, after HOLD, MIN MAX, REL and Hz */
+function meterShown(rd) {
+  if (meter.fn === 'off' || !rd) return null;
+  if (rd.lead) return { text: 'LEAd', unit: '', frac: 0, ol: false, neg: false, lead: true };
+  if (mview.hold) return mview.hold;
+  if (mview.hz && !['ohm', 'diode'].includes(meter.fn)) return hzDisplay(rd.hz);
+  let v = rd.value;
+  if (mview.stats && isFinite(v)) { const s = mview.stats; s.max = Math.max(s.max, v); s.min = Math.min(s.min, v); s.sum += v; s.n++; }
+  if (mview.mm !== null && mview.stats) { const s = mview.stats; v = [s.max, s.min, s.sum / s.n][mview.mm]; }
+  if (mview.rel !== null && isFinite(v)) v -= mview.rel;
+  return meterDisplay(rd.kind, v, mview.range);
+}
+function meterSVG(rd, d) {
+  const off = meter.fn === 'off';
+  let s = `<rect x="2" y="2" width="216" height="396" rx="26" fill="#e8b425" stroke="#9c7412" stroke-width="2"/>
+    <rect x="13" y="13" width="194" height="374" rx="18" fill="#34373c" stroke="#1d1f22" stroke-width="1.5"/>
+    <text x="110" y="25" class="m-brand">TRUE RMS MULTIMETER</text>
+    <rect x="22" y="30" width="176" height="90" rx="6" fill="${off ? '#8d9483' : '#b7c0a3'}" stroke="#1d1f22" stroke-width="2"/>`;
+  if (!off && d) {
+    const ann = (x, txt, lit = true) => `<text x="${x}" y="42" class="m-ann ${lit ? 'lit' : 'unlit'}">${txt}</text>`;
+    s += ann(30, mview.range === null ? 'AUTO' : 'MANUAL') + ann(68, 'HOLD', !!mview.hold) + ann(96, mview.mm === null ? (mview.stats ? 'MIN MAX' : '') : ['MAX', 'MIN', 'AVG'][mview.mm], mview.mm !== null || !!mview.stats)
+      + ann(140, 'Δ', mview.rel !== null) + ann(152, ')))', meter.fn === 'ohm' && meter.shift) + ann(172, '→|', meter.fn === 'diode' && !meter.shift);
+    s += `<rect x="30" y="${50 + 42 / 2 - 1.8}" width="10" height="3.6" rx="1.2" class="${d.neg ? 'lit' : 'unlit'}"/>`;
+    const digits = d.ol ? [{ ch: ' ' }, { ch: 'O', dp: false }, { ch: 'L' }, { ch: ' ' }] : lcdDigits(d.text);
+    digits.forEach((g, k) => { s += segDigit(46 + k * 31, 50, g.ch, g.dp); });
+    s += `<text x="192" y="68" class="m-unit">${esc(d.unit)}</text>`;
+    if (rd && ['V', 'mV', 'mA', 'A', 'uA'].includes(rd.kind) && !d.lead && !mview.hz) s += `<text x="192" y="86" class="m-unit sm">${rd.ac ? 'AC' : 'DC'}</text>`;
+    // 32-segment analog bargraph
+    const n = d.ol ? 32 : Math.min(32, Math.round((d.frac || 0) * 32));
+    if (d.neg) s += `<rect x="26" y="106.5" width="5" height="1.6" class="lit"/>`;
+    for (let k = 0; k < 32; k++) s += `<rect x="${34 + k * 4.6}" y="${k % 5 === 0 ? 102 : 104}" width="3" height="${k % 5 === 0 ? 10 : 8}" class="${k < n && !mview.hz ? 'lit' : 'unlit'}"/>`;
+  }
+  // buttons
+  const btn = (x, y, id, label, yellow, pressed) => `<g class="m-btn" data-mbtn="${id}" role="button" aria-label="${label || 'Yellow button'}"><rect x="${x}" y="${y}" width="52" height="20" rx="5" fill="${yellow ? '#f0c419' : '#24262a'}" stroke="${pressed ? '#6cc6b5' : '#15171a'}" stroke-width="${pressed ? 2 : 1}"/><text x="${x + 26}" y="${y + 13.5}" class="m-btxt">${label}</text></g>`;
+  s += btn(28, 128, 'minmax', 'MIN MAX', false, mview.mm !== null || !!mview.stats) + btn(84, 128, 'range', 'RANGE', false, mview.range !== null) + btn(140, 128, 'hold', 'HOLD', false, !!mview.hold);
+  s += btn(28, 154, 'rel', 'REL Δ', false, mview.rel !== null) + btn(84, 154, 'hz', 'Hz', false, mview.hz) + btn(140, 154, 'shift', '', true, meter.shift);
+  // rotary switch
+  const cx = 110, cy = 262, k0 = DIAL.findIndex(x => x[0] === meter.fn);
+  DIAL.forEach(([id, label, alt], k) => {
+    const a = DIAL_ANGLE(k) * Math.PI / 180, x = cx + 64 * Math.sin(a), y = cy - 64 * Math.cos(a);
+    s += `<g class="m-pos" data-mfn="${id}" role="button" aria-label="${label}"><circle cx="${x}" cy="${y}" r="13" fill="transparent"/><text x="${x}" y="${y + 3}" class="m-pos-t ${k === k0 ? 'cur' : ''}">${esc(label)}</text>${alt ? `<text x="${x}" y="${y + 12}" class="m-alt">${esc(alt)}</text>` : ''}</g>`;
+  });
+  const a = DIAL_ANGLE(k0) * Math.PI / 180;
+  s += `<g class="m-knob" data-mknob="1"><circle cx="${cx}" cy="${cy}" r="40" fill="#1f2124" stroke="#111" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="33" fill="#2c2f33"/>
+    <rect x="${cx - 7}" y="${cy - 36}" width="14" height="72" rx="6" fill="#3d4146" transform="rotate(${DIAL_ANGLE(k0)} ${cx} ${cy})"/>
+    <line x1="${cx}" y1="${cy}" x2="${cx + 33 * Math.sin(a)}" y2="${cy - 33 * Math.cos(a)}" stroke="#f4f4f4" stroke-width="3" stroke-linecap="round"/></g>`;
+  // input jacks: A, mA/µA, COM, VΩ
+  const jacks = [['A', 40, 'A', '10A MAX FUSED'], ['mA', 86, 'mA µA', '400mA FUSED'], ['COM', 134, 'COM', ''], ['V', 180, 'VΩ→|', '1000V MAX']];
+  for (const [id, x, label, sub] of jacks) {
+    const red = id === meter.jack, black = id === 'COM';
+    s += `<g class="m-jack" data-mjack="${id}" role="button" aria-label="${label} jack"><text x="${x}" y="334" class="m-jl">${label}</text>
+      <circle cx="${x}" cy="352" r="13" fill="#17181a" stroke="${id === 'V' ? '#c43b2f' : id === 'COM' ? '#555' : '#c43b2f'}" stroke-width="2.5"/><circle cx="${x}" cy="352" r="5" fill="#000"/>
+      ${red || black ? `<circle cx="${x}" cy="352" r="9.5" fill="${red ? '#c62f2f' : '#1b1b1b'}" stroke="${red ? '#ff8a7a' : '#777'}" stroke-width="1.2"/>` : ''}
+      <text x="${x}" y="376" class="m-js">${sub}</text>${meter.fuses[id] ? `<text x="${x}" y="384" class="m-js bad">fuse blown</text>` : ''}</g>`;
+  }
+  return s;
+}
+function holeTxt(k) { return k ? holeName(k) : 'not placed'; }
+function renderMeter() {
+  $('btn-meter').setAttribute('aria-pressed', meter.on);
+  $('meterpanel').hidden = !meter.on;
+  renderProbes();
+  if (!meter.on) return;
+  const rd = meter.fn === 'off' ? null : meterMeasure(state.parts, { mode: state.mode, freq: state.freq }, meter);
+  if (rd && rd.blow) meter.fuses[rd.blow] = true;
+  mview.reading = rd;
+  const d = meterShown(rd);
+  mview.shown = d;
+  $('meter').innerHTML = meterSVG(rd, d);
+  // continuity: beep when the probes first find a short
+  const key = rd && rd.beep ? meter.fn + meter.red + meter.black : '';
+  if (key && key !== mview.beepKey) beep();
+  mview.beepKey = key;
+  const fnName = { off: 'Off', vac: 'AC volts (true rms, AC-coupled)', vdc: 'DC volts', mv: meter.shift ? 'AC millivolts' : 'DC millivolts', ohm: meter.shift ? 'Continuity (beeps below 25 Ω)' : 'Resistance', diode: meter.shift ? 'Capacitance' : 'Diode test (about 1 mA)', a: meter.shift ? 'AC amps' : 'DC amps', ua: meter.shift ? 'AC microamps' : 'DC microamps' }[meter.fn];
+  const how = { vac: 'The meter sits across the probes as 10 MΩ.', vdc: 'The meter sits across the probes as 10 MΩ.', mv: 'The meter sits across the probes as 10 MΩ.', ohm: 'The meter drives a small test current and reads V/I.', diode: meter.shift ? 'The meter charges the part with a test signal.' : 'Red on the anode reads the forward drop; reversed reads OL.', a: 'Break the circuit and put the meter in series: it is a ' + (meter.jack === 'A' ? '0.03 Ω' : '1.8 Ω') + ' shunt between the probes.', ua: 'Break the circuit and put the meter in series: it is a 100 Ω shunt between the probes, so it changes small currents a little.' }[meter.fn] || '';
+  const notes = rd ? rd.notes.slice() : [];
+  if (rd && rd.lead) notes.unshift(`LEAd: the red lead is in the ${meter.jack === 'A' ? 'A' : 'mA/µA'} jack but the dial is not on a current position. Across a supply that is a short through the fuse.`);
+  const blown = Object.keys(meter.fuses).filter(k => meter.fuses[k]);
+  $('meterside').innerHTML = `
+    <div class="eyebrow">Dial</div><p class="mfn">${esc(fnName)}</p>
+    ${SHIFTS[meter.fn] ? `<p class="note">Yellow button: ${esc(SHIFTS[meter.fn])}.</p>` : ''}
+    <div class="probebtns">
+      <button class="btn sm probe red" data-probe="red" aria-pressed="${state.tool === 'probe-red'}"><i></i>Red: ${esc(holeTxt(meter.red))}</button>
+      <button class="btn sm probe black" data-probe="black" aria-pressed="${state.tool === 'probe-black'}"><i></i>Black: ${esc(holeTxt(meter.black))}</button>
+      ${meter.red || meter.black ? '<button class="btn sm" data-probe="clear">Lift the probes</button>' : ''}
+    </div>
+    ${how ? `<p class="note">${esc(how)}</p>` : ''}
+    ${notes.map(n => `<p class="note mwarn">${esc(n)}</p>`).join('')}
+    ${blown.length ? `<button class="btn sm" data-probe="fuse">Replace the ${blown.map(k => k === 'A' ? '11 A' : '440 mA').join(' and ')} fuse</button>` : ''}`;
+}
+function renderProbes() {
+  let s = '';
+  if (meter.on) for (const [k, col, dx] of [[meter.black, '#1b1b1b', 1], [meter.red, '#c62f2f', -1]]) {
+    if (!k) continue;
+    const { x, y } = holeXY(k), up = y > 90 ? -1 : 1;
+    const ux = dx * 0.45, uy = up * 0.9, L = 34;
+    const x1 = x + ux * 7, y1 = y + uy * 7, x2 = x + ux * L, y2 = y + uy * L;
+    s += `<line x1="${x}" y1="${y}" x2="${x1}" y2="${y1}" stroke="#c9c9c9" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="6" stroke-linecap="round" opacity="0.92"/>
+      <circle cx="${x}" cy="${y}" r="3.2" fill="none" stroke="${col === '#1b1b1b' ? '#1b1b1b' : '#c62f2f'}" stroke-width="1.4"/>`;
+  }
+  $('bb-probe').innerHTML = s;
+}
+$('btn-meter').addEventListener('click', () => { meter.on = !meter.on; if (!meter.on && state.tool.startsWith('probe')) setTool('select'); renderMeter(); save(); });
+$('meter').addEventListener('click', e => {
+  if (holdT === 'skip') { holdT = null; return; }
+  const pos = e.target.closest('[data-mfn]'), jack = e.target.closest('[data-mjack]'), b = e.target.closest('[data-mbtn]'), knob = e.target.closest('[data-mknob]');
+  if (pos || knob) {
+    const k = DIAL.findIndex(x => x[0] === meter.fn);
+    meter.fn = pos ? pos.dataset.mfn : DIAL[(k + 1) % DIAL.length][0];
+    meter.shift = false; resetMeterModes();
+  } else if (jack) {
+    if (jack.dataset.mjack !== 'COM') meter.jack = jack.dataset.mjack;
+    resetMeterModes();
+  } else if (b) {
+    const id = b.dataset.mbtn, rd = mview.reading;
+    if (meter.fn === 'off') return;
+    if (id === 'shift') { if (SHIFTS[meter.fn]) { meter.shift = !meter.shift; resetMeterModes(); } }
+    else if (id === 'hold') mview.hold = mview.hold ? null : mview.shown;
+    else if (id === 'rel') mview.rel = mview.rel !== null ? null : rd && isFinite(rd.value) ? rd.value : null;
+    else if (id === 'hz') mview.hz = !mview.hz && !['ohm', 'diode'].includes(meter.fn);
+    else if (id === 'minmax') {
+      // first press starts recording and shows MAX; then MIN, AVG, and back to MAX. Hold the button to stop.
+      if (!mview.stats) { const v = rd && isFinite(rd.value) ? rd.value : 0; mview.stats = { max: v, min: v, sum: v, n: 1 }; mview.mm = 0; }
+      else mview.mm = (mview.mm + 1) % 3;
+    } else if (id === 'range') {
+      // each press steps up one range; holding it returns to autorange
+      const R = rd && METER_RANGES[rd.kind];
+      if (R) mview.range = mview.range === null ? (mview.shown && mview.shown.range) || 0 : (mview.range + 1) % R.length;
+    }
+  } else return;
+  renderMeter(); save();
+});
+// press and hold RANGE (back to autorange) or MIN MAX (stop recording) for about a second
+let holdT = null;
+$('meter').addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-mbtn]'); if (!b || !['range', 'minmax'].includes(b.dataset.mbtn)) return;
+  holdT = setTimeout(() => { holdT = 'fired'; if (b.dataset.mbtn === 'range') mview.range = null; else { mview.stats = null; mview.mm = null; } renderMeter(); }, 900);
+});
+$('meter').addEventListener('pointerup', e => { if (holdT === 'fired') { e.preventDefault(); holdT = 'skip'; return; } clearTimeout(holdT); holdT = null; });
+$('meterside').addEventListener('click', e => {
+  const b = e.target.closest('[data-probe]'); if (!b) return;
+  const p = b.dataset.probe;
+  if (p === 'clear') { meter.red = meter.black = null; resetMeterModes(); if (state.tool.startsWith('probe')) setTool('select'); }
+  else if (p === 'fuse') meter.fuses = { mA: false, A: false };
+  else { setTool(state.tool === 'probe-' + p ? 'select' : 'probe-' + p); return; }
+  renderMeter(); save();
+});
 
 /* ---------- board interaction ---------- */
 function svgPoint(evt) {
@@ -1085,6 +1314,12 @@ $('board').addEventListener('click', e => {
     renderPalette(); renderBoardView(); return;
   }
   const h = nearestHole(e); if (!h) return;
+  if (state.tool.startsWith('probe-')) {
+    const which = state.tool.slice(6);
+    meter[which] = h; resetMeterModes();
+    if (which === 'red' && !meter.black) setTool('probe-black'); else setTool('select');
+    return;
+  }
   state.sample = '';
   if (state.tool === 'GND') {
     state.parts = state.parts.filter(p => p.type !== 'GND');

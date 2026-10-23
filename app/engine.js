@@ -1196,10 +1196,143 @@ function importLTspice(text) {
   } catch (e) { return { error: e.message, notes: parsed.notes }; }
 }
 
+/* ----- virtual multimeter: a 6000-count true-RMS handheld laid out like the Fluke 87V ----- */
+const METER = {
+  vin: 10e6,                               // V and mV input resistance
+  shunt: { A: 0.03, mA: 1.8, uA: 100 },    // burden voltage: 30 mV/A, 1.8 mV/mA, 100 µV/µA
+  fuse: { A: 11, mA: 0.44 },               // fuse ratings: 11 A and 440 mA
+  ohmV: 0.4,                               // Ω test voltage, low enough that diodes stay off
+  diodeV: 3.2, diodeI: 1e-3,               // diode test: about 1 mA, open-circuit reads OL
+  capF: 1000, beep: 25                     // capacitance test frequency; continuity beeps below 25 Ω
+};
+// [range max, unit, display scale, decimals]: 6000 counts, so 5.999 V on the 6 V range
+const METER_RANGES = {
+  V: [[6, 'V', 1, 3], [60, 'V', 1, 2], [600, 'V', 1, 1], [1000, 'V', 1, 0]],
+  mV: [[0.6, 'mV', 1e3, 1]],
+  ohm: [[600, 'Ω', 1, 1], [6e3, 'kΩ', 1e-3, 3], [60e3, 'kΩ', 1e-3, 2], [600e3, 'kΩ', 1e-3, 1], [6e6, 'MΩ', 1e-6, 3], [50e6, 'MΩ', 1e-6, 2]],
+  diode: [[3, 'V', 1, 3]],
+  cap: [[10e-9, 'nF', 1e9, 2], [100e-9, 'nF', 1e9, 1], [1e-6, 'µF', 1e6, 3], [10e-6, 'µF', 1e6, 2], [100e-6, 'µF', 1e6, 1], [10e-3, 'µF', 1e6, 0]],
+  mA: [[0.06, 'mA', 1e3, 2], [0.4, 'mA', 1e3, 1]],
+  A: [[6, 'A', 1, 3], [10, 'A', 1, 2]],
+  uA: [[600e-6, 'µA', 1e6, 1], [6000e-6, 'µA', 1e6, 0]]
+};
+/* What the meter shows for a value. range: index for manual ranging, or null for auto */
+function meterDisplay(kind, value, range = null) {
+  const R = METER_RANGES[kind];
+  if (!R) return null;
+  if (!isFinite(value) && !(value === Infinity)) return { text: '----', unit: R[0][1], range: 0, frac: 0, ol: false };
+  const a = Math.abs(value);
+  let k = range;
+  // autorange: the lowest range where the rounded reading still fits the 6000 counts
+  if (k === null || k === undefined) { k = R.findIndex(([max, , sc, d]) => +(a * sc).toFixed(d) < max * sc); if (k < 0) k = R.length - 1; }
+  k = Math.min(k, R.length - 1);
+  const [max, unit, scale, dec] = R[k];
+  if (!(+(a * scale).toFixed(dec) < max * scale) && !(kind === 'V' && k === R.length - 1 && a <= 1000)) return { text: 'OL', unit, range: k, frac: 1, ol: true, neg: false };
+  const text = (a * scale).toFixed(dec);
+  return { text, unit, range: k, frac: a / max, ol: false, neg: value < 0 && +text !== 0 };
+}
+function nodeVolt(res, hole, ac) {
+  const r = res.topo.find(baseNetOfHole(hole));
+  if (ac) return res.nodeV.get(r) || [0, 0];
+  return res.dc ? res.dc.nodeV.get(r) || 0 : 0;
+}
+/* the board with the supplies switched off, for Ω, diode and capacitance tests */
+function unpowered(parts) {
+  return parts.filter(p => !['VDC', 'VAC', 'GND'].includes(p.type))
+    .map(p => p.type === 'L' && !(p.dcr > 0) ? Object.assign({}, p, { dcr: 0.05 }) : p);
+}
+/*
+ * m: { fn: off|vac|vdc|mv|ohm|diode|a|ua, shift (yellow button), red, black (holes), jack: V|mA|A, fuses: { mA, A } (true = blown) }
+ * Returns { kind, value, ac, hz, beep, lead, blow, notes }. value is in SI units; Infinity means open (OL).
+ */
+function meterMeasure(parts, opts, m) {
+  const mode = opts.mode || 'DC', freq = opts.freq || 1000;
+  const out = { kind: null, value: 0, ac: false, hz: 0, beep: false, lead: false, blow: null, notes: [] };
+  if (!m || m.fn === 'off') { out.kind = 'off'; return out; }
+  const jack = m.jack || 'V', fuses = m.fuses || {};
+  const isCurrent = m.fn === 'a' || m.fn === 'ua';
+  const probes = m.red && m.black;
+  out.lead = jack !== 'V' && !isCurrent;
+  const powered = parts.some(p => p.type === 'VDC' || p.type === 'VAC');
+  const same = probes && (() => { const t = topology(parts); return t.find(baseNetOfHole(m.red)) === t.find(baseNetOfHole(m.black)); })();
+
+  // Ω, continuity, diode and capacitance: the meter drives the circuit with the supplies off
+  if (m.fn === 'ohm' || m.fn === 'diode') {
+    const cap = m.fn === 'diode' && m.shift;
+    out.kind = m.fn === 'ohm' ? 'ohm' : cap ? 'cap' : 'diode';
+    if (powered) out.notes.push('Readings in this position are taken with the supplies switched off. On the bench, turn the power off first: a live circuit gives a wrong reading.');
+    if (!probes) { out.value = out.kind === 'cap' ? 0 : Infinity; return out; }
+    if (same) { out.value = 0; out.beep = out.kind === 'ohm' && m.shift || out.kind === 'diode'; return out; }
+    const base = unpowered(parts), gnd = { id: '__mg', type: 'GND', a: m.black, b: null, name: 'GND' };
+    if (out.kind === 'cap') {
+      const src = { id: '__mt', type: 'VAC', model: 'VAC-IDEAL', a: m.red, b: m.black, value: 1, phase: 0, name: 'meter' };
+      const r = analyze(base.concat([src, gnd]), { mode: 'AC', freq: METER.capF });
+      if (!r.ok) { out.value = NaN; return out; }
+      const i = r.parts.__mt.i, w = 2 * Math.PI * METER.capF; // i flows into the + terminal, so the circuit draws −i
+      out.value = Math.max(0, -i[1] / w);
+      return out;
+    }
+    if (out.kind === 'diode') {
+      const src = { id: '__mt', type: 'VDC', model: 'V-BENCH', a: m.red, b: m.black, value: METER.diodeV, iLimit: METER.diodeI, name: 'meter' };
+      const r = analyze(base.concat([src, gnd]), { mode: 'DC' });
+      if (!r.ok) { out.value = NaN; return out; }
+      out.value = nodeVolt(r, m.red, false);
+      out.beep = out.value < 0.1;
+      return out;
+    }
+    const src = { id: '__mt', type: 'VDC', model: 'V-IDEAL', a: m.red, b: m.black, value: METER.ohmV, name: 'meter' };
+    const r = analyze(base.concat([src, gnd]), { mode: 'DC' });
+    if (!r.ok) { out.value = NaN; return out; }
+    const i = Math.abs(r.parts.__mt.i[0]);
+    out.value = i < METER.ohmV / 1e9 ? Infinity : METER.ohmV / i;
+    out.beep = !!m.shift && out.value < METER.beep;
+    return out;
+  }
+
+  // volts and amps: the meter sits across the probes as 10 MΩ, or as a current shunt when the red lead is in A or mA
+  if (isCurrent) {
+    out.kind = jack === 'A' ? 'A' : m.fn === 'ua' ? 'uA' : 'mA';
+    if (m.fn === 'ua' && jack === 'A') out.kind = 'uA';
+    out.ac = !!m.shift;
+    if (jack === 'V') out.notes.push('The red lead is in the V jack, so no current flows through the meter. Move it to mA/µA or A.');
+  } else {
+    out.kind = m.fn === 'mv' ? 'mV' : 'V';
+    out.ac = m.fn === 'vac' || (m.fn === 'mv' && !!m.shift);
+  }
+  if (!probes) return out;
+  const useJack = jack === 'A' ? 'A' : jack === 'mA' ? (m.fn === 'ua' ? 'uA' : 'mA') : null;
+  if (useJack && m.fn === 'ua' && jack === 'A') return out; // µA position only reads the mA/µA jack
+  const fuseKey = jack === 'A' ? 'A' : 'mA';
+  if (useJack && fuses[fuseKey]) { out.notes.push(`The ${fuseKey === 'A' ? '11 A' : '440 mA'} fuse is blown, so this jack is open.`); if (!isCurrent) return out; out.value = 0; return out; }
+  if (!useJack && isCurrent) return out;
+  const rm = useJack ? METER.shunt[useJack] : METER.vin;
+  const meterR = { id: '__mr', type: 'R', model: 'R-CF', a: m.red, b: m.black, value: rm, name: 'meter' };
+  const r = analyze(parts.concat([meterR]), { mode, freq });
+  if (!r.ok) { out.value = NaN; out.notes.push(...r.errors); return out; }
+  const vdc = nodeVolt(r, m.red, false) - nodeVolt(r, m.black, false);
+  let vac = 0;
+  if (mode === 'AC') { const a = nodeVolt(r, m.red, true), b = nodeVolt(r, m.black, true); vac = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  const scale = useJack ? 1 / rm : 1;
+  const dc = vdc * scale, acm = vac * scale;
+  if (useJack) {
+    const peak = Math.abs(dc) + acm * Math.SQRT2;
+    if (peak > METER.fuse[fuseKey]) {
+      out.blow = fuseKey;
+      out.notes.push(`${fmtEng(peak, 'A')} through the ${fuseKey === 'A' ? 'A' : 'mA/µA'} jack blew the ${fuseKey === 'A' ? '11 A' : '440 mA'} fuse.`);
+      out.value = 0; return out;
+    }
+  }
+  if (out.lead) { out.value = 0; return out; }
+  out.value = out.ac ? acm : dc;
+  const thr = useJack ? 1e-5 : 0.01;
+  if (mode === 'AC' && acm > thr) out.hz = freq;
+  return out;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     E_BASE, SERIES_TOL, POWER_RATINGS, LED_TYPES, CATALOG, CATALOG_BY_ID, catalogOf, snap, isInSeries, parseEng, fmtEng, rkm, colorBands, smdCode,
     capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, spiceNetlist, SAMPLE_CIRCUITS, sampleParts,
-    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice
+    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice, METER, METER_RANGES, meterDisplay, meterMeasure
   };
 }
