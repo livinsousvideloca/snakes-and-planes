@@ -829,9 +829,341 @@ function sampleParts(key) {
   return parts;
 }
 
+/* ---------- LTspice import ----------
+   A netlist (View → SPICE Netlist, or a .net / .cir file) or a schematic (.asc) becomes a list of
+   elements, and layoutCircuit() places those on the breadboard: ground and supplies on the rails,
+   every other node on its own column strip, op-amps as DIP-8 chips across the center channel. */
+
+/* SPICE number: 4.7k, 1Meg, 10u, 100n, 2m (milli), 4k7; trailing units are ignored */
+function spiceValue(s) {
+  const m = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(meg|mil|[tgkmunpfµ])?(\d*)/i.exec(String(s));
+  if (!m) return NaN;
+  const mult = { t: 1e12, g: 1e9, meg: 1e6, k: 1e3, m: 1e-3, mil: 25.4e-6, u: 1e-6, 'µ': 1e-6, n: 1e-9, p: 1e-12, f: 1e-15 }[(m[2] || '').toLowerCase()] || 1;
+  const num = m[3] && m[2] && !/[.e]/i.test(m[1]) ? parseFloat(m[1] + '.' + m[3]) : parseFloat(m[1]);
+  return num * mult;
+}
+const isGroundNode = n => /^(0|gnd)$/i.test(n);
+
+/* One element line (already joined and stripped of comments) → element, or { skip: reason } */
+function parseElementLine(line) {
+  const t = line.trim().split(/\s+/), name = t[0], k = name[0].toUpperCase();
+  const params = {};
+  for (const tok of t) { const m = /^(\w+)=(.+)$/.exec(tok); if (m) params[m[1].toLowerCase()] = m[2]; }
+  const node = n => isGroundNode(n) ? '0' : n;
+  if ('RCL'.includes(k)) {
+    if (t.length < 4) return { skip: `${name}: needs two nodes and a value` };
+    const value = spiceValue(t[3].replace(/^\{|\}$/g, ''));
+    if (!(value > 0)) return { skip: `${name}: value "${t[3]}" is not a number this tool can use` };
+    return { kind: k, name, nodes: [node(t[1]), node(t[2])], value, rser: params.rser ? spiceValue(params.rser) : 0 };
+  }
+  if (k === 'V') {
+    if (t.length < 4) return { skip: `${name}: needs two nodes and a value` };
+    const rest = t.slice(3).join(' ');
+    const el = { kind: 'V', name, nodes: [node(t[1]), node(t[2])], rser: params.rser ? spiceValue(params.rser) : 0 };
+    const sine = /sin(?:e)?\s*\(([^)]*)\)/i.exec(rest), ac = /\bac\s+([^\s]+)(?:\s+([^\s=]+))?/i.exec(rest);
+    if (sine) {
+      const a = sine[1].trim().split(/[\s,]+/).map(spiceValue);
+      Object.assign(el, { ac: true, value: (a[1] || 0) / Math.SQRT2, freq: a[2] > 0 ? a[2] : null, phase: 0 });
+    } else if (ac) Object.assign(el, { ac: true, value: spiceValue(ac[1]), phase: ac[2] ? spiceValue(ac[2]) || 0 : 0, freq: null });
+    else if (/pulse|pwl|exp|sffm/i.test(rest)) return { skip: `${name}: ${rest.split('(')[0].trim()} sources are not supported; use a DC or SINE source` };
+    else {
+      const d = /^(?:dc\s+)?([^\s]+)/i.exec(rest);
+      el.value = d ? spiceValue(d[1]) : NaN;
+    }
+    if (!isFinite(el.value)) return { skip: `${name}: could not read the source value "${rest}"` };
+    return el;
+  }
+  if (k === 'D') {
+    if (t.length < 4) return { skip: `${name}: needs two nodes and a model` };
+    return { kind: 'D', name, nodes: [node(t[1]), node(t[2])], model: t[3] };
+  }
+  if (k === 'X') {
+    const pos = t.slice(1).filter(x => !x.includes('='));
+    const sub = pos.pop(), nodes = pos.map(node);
+    if (nodes.length !== 5 && nodes.length !== 3) return { skip: `${name}: subcircuit ${sub} has ${nodes.length} pins; only op-amps (3 or 5 pins) are supported` };
+    return { kind: 'X', name, nodes, model: sub };
+  }
+  const what = { I: 'current sources', Q: 'transistors', M: 'MOSFETs', J: 'JFETs', E: 'controlled sources', F: 'controlled sources', G: 'controlled sources', H: 'controlled sources', B: 'behavioral sources', S: 'voltage-controlled switches', K: 'coupled inductors', T: 'transmission lines' }[k];
+  return { skip: `${name}: ${what || 'this kind of element'} ${what ? 'are' : 'is'} not part of this course's parts, so it was left out` };
+}
+
+/* SPICE netlist text → { elements, notes, analysis } */
+function parseNetlist(text) {
+  const raw = String(text).replace(/\r/g, '').split('\n');
+  const lines = [];
+  for (const l of raw) {
+    if (/^\s*\+/.test(l) && lines.length) lines[lines.length - 1] += ' ' + l.replace(/^\s*\+/, '');
+    else lines.push(l);
+  }
+  const elements = [], notes = [];
+  let inSub = false, analysis = null;
+  lines.forEach((l, i) => {
+    const s = l.replace(/;.*$/, '').trim();
+    if (!s || s[0] === '*') return;
+    if (/^\.subckt\b/i.test(s)) { inSub = true; return; }
+    if (/^\.ends\b/i.test(s)) { inSub = false; return; }
+    if (inSub) return;
+    if (s[0] === '.') { if (/^\.(ac|tran|op)\b/i.test(s)) analysis = s.slice(1, 3).toLowerCase() === 'ac' ? 'ac' : s.slice(1, 3).toLowerCase(); return; }
+    const el = parseElementLine(s);
+    if (el.skip) { if (i > 0 || elements.length) notes.push(el.skip); }
+    else elements.push(el);
+  });
+  return { elements, notes, analysis };
+}
+
+/* LTspice schematic (.asc) → netlist elements. Pin offsets are for the standard symbols at R0;
+   a pin that lands on no wire means the symbol is not one of these, and is reported. */
+const ASC_PINS = {
+  res: ['R', [[16, 16], [16, 96]]], res2: ['R', [[16, 16], [16, 96]]],
+  cap: ['C', [[16, 0], [16, 64]]], polcap: ['C', [[16, 0], [16, 64]]],
+  ind: ['L', [[16, 16], [16, 96]]], ind2: ['L', [[16, 16], [16, 96]]],
+  voltage: ['V', [[0, 16], [0, 96]]],
+  diode: ['D', [[16, 0], [16, 64]]], led: ['D', [[16, 0], [16, 64]]], schottky: ['D', [[16, 0], [16, 64]]], zener: ['D', [[16, 0], [16, 64]]],
+  opamp: ['X', [[-32, 80], [-32, 48], [32, 64]]],
+  opamp2: ['X', [[-32, 80], [-32, 48], [0, 32], [0, 96], [32, 64]]]
+};
+function ascTransform(rot, x, y) {
+  switch (rot) {
+    case 'R90': return [-y, x]; case 'R180': return [-x, -y]; case 'R270': return [y, -x];
+    case 'M0': return [-x, y]; case 'M90': return [-y, -x]; case 'M180': return [x, -y]; case 'M270': return [y, x];
+    default: return [x, y];
+  }
+}
+function parseAsc(text) {
+  const wires = [], flags = [], syms = [], notes = [];
+  let analysis = null;
+  for (const l of String(text).replace(/\r/g, '').split('\n')) {
+    const t = l.trim().split(/\s+/);
+    if (t[0] === 'WIRE') wires.push(t.slice(1, 5).map(Number));
+    else if (t[0] === 'FLAG') flags.push({ x: +t[1], y: +t[2], name: t[3] });
+    else if (t[0] === 'SYMBOL') syms.push({ sym: t[1], x: +t[2], y: +t[3], rot: t[4] || 'R0', attr: {} });
+    else if (t[0] === 'SYMATTR' && syms.length) syms[syms.length - 1].attr[t[1]] = l.trim().split(/\s+/).slice(2).join(' ');
+    else if (t[0] === 'TEXT') { const m = /!\.(ac|tran|op)\b/i.exec(l); if (m) analysis = m[1].toLowerCase(); }
+  }
+  // connectivity: wire ends join, a point on a wire's span joins that wire, flags with one name join
+  const parent = new Map();
+  const key = (x, y) => x + ',' + y;
+  const find = k => { if (!parent.has(k)) parent.set(k, k); let r = k; while (parent.get(r) !== r) r = parent.get(r); parent.set(k, r); return r; };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(rb, ra); };
+  const pts = [];
+  for (const [x1, y1, x2, y2] of wires) { union(key(x1, y1), key(x2, y2)); pts.push([x1, y1], [x2, y2]); }
+  const pinsOf = s => {
+    const base = s.sym.split(/[\\/]/).pop().toLowerCase();
+    const def = ASC_PINS[base] || (/opamp|^(lt|lm|ad|op|tl|ne|mcp)\d/.test(base) && /opamps/i.test(s.sym) ? ASC_PINS.opamp2 : null);
+    if (!def) return null;
+    return { kind: def[0], pins: def[1].map(([px, py]) => { const [dx, dy] = ascTransform(s.rot, px, py); return [s.x + dx, s.y + dy]; }) };
+  };
+  const placed = [];
+  for (const s of syms) {
+    const name = s.attr.InstName || s.sym;
+    const p = pinsOf(s);
+    if (!p) { notes.push(`${name}: the LTspice symbol "${s.sym}" is not one this tool knows, so it was left out. Pasting the netlist (View → SPICE Netlist) works for any op-amp.`); continue; }
+    placed.push(Object.assign({ name }, s, p));
+    for (const q of p.pins) pts.push(q);
+  }
+  for (const f of flags) pts.push([f.x, f.y]);
+  for (const [x1, y1, x2, y2] of wires) for (const [x, y] of pts) {
+    const on = (x - x1) * (y2 - y1) === (y - y1) * (x2 - x1) && x >= Math.min(x1, x2) && x <= Math.max(x1, x2) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2);
+    if (on) union(key(x, y), key(x1, y1));
+  }
+  const byName = {};
+  for (const f of flags) { const k = key(f.x, f.y); find(k); if (byName[f.name]) union(byName[f.name], k); else byName[f.name] = k; }
+  const label = new Map();
+  for (const f of flags) label.set(find(key(f.x, f.y)), isGroundNode(f.name) ? '0' : f.name);
+  // how many things touch each point, so a pin sitting in empty space can be reported
+  const touches = new Map();
+  for (const [x, y] of pts) touches.set(key(x, y), (touches.get(key(x, y)) || 0) + 1);
+  const wireRoots = new Set(wires.flatMap(([x1, y1]) => [find(key(x1, y1))]));
+  let n = 1;
+  const netOf = (x, y) => { const r = find(key(x, y)); if (!label.has(r)) label.set(r, 'N' + String(n++).padStart(3, '0')); return label.get(r); };
+  const elements = [];
+  for (const s of placed) {
+    const loose = s.pins.filter(([x, y]) => touches.get(key(x, y)) === 1 && !wireRoots.has(find(key(x, y))));
+    if (loose.length === s.pins.length) { notes.push(`${s.name}: none of its pins touch a wire, so it was left out (its symbol may be drawn differently from the standard one).`); continue; }
+    if (loose.length) notes.push(`${s.name}: ${loose.length} pin${loose.length > 1 ? 's' : ''} not connected to anything.`);
+    const nodes = s.pins.map(([x, y]) => netOf(x, y));
+    const prefix = s.name[0].toUpperCase() === s.kind ? '' : s.kind;
+    const val = [s.attr.Value || '', s.attr.Value2 || '', s.attr.SpiceLine || ''].join(' ').trim();
+    const line = s.kind === 'X' ? `${prefix}${s.name} ${nodes.join(' ')} ${s.attr.Value || s.sym.split(/[\\/]/).pop()}`
+      : s.kind === 'D' ? `${prefix}${s.name} ${nodes.join(' ')} ${/led/i.test(s.sym) ? 'LED' : (s.attr.Value || 'D')}`
+      : `${prefix}${s.name} ${nodes.join(' ')} ${val}`;
+    const el = parseElementLine(line);
+    if (el.skip) notes.push(el.skip); else elements.push(el);
+  }
+  return { elements, notes, analysis };
+}
+
+/* Elements → breadboard parts. Ground is the top − rail; the first positive supply node is the
+   top + rail and the first negative one the bottom − rail (otherwise the bottom − rail is ground). */
+function layoutCircuit(elements, opts = {}) {
+  const notes = [], parts = [];
+  const els = elements.slice();
+  let id = 0;
+  const used = new Set();
+  const uniq = nm => { let n = nm, k = 2; while (used.has(n)) n = nm + '_' + k++; used.add(n); return n; };
+  const addPart = p => { p.id = 'p' + (++id); parts.push(p); return p; };
+  // op-amps: 3-pin ideal ones need supplies
+  const ops = els.filter(e => e.kind === 'X');
+  const srcs = els.filter(e => e.kind === 'V' && !e.ac);
+  const supplyNode = sign => {
+    for (const v of srcs) {
+      const [a, b] = v.nodes;
+      if (b === '0' && a !== '0' && Math.sign(v.value) === sign) return a;
+      if (a === '0' && b !== '0' && Math.sign(v.value) === -sign) return b;
+    }
+    return null;
+  };
+  // with op-amps, their supply pins name the rails; otherwise the first DC source to ground does
+  let vpNet = supplyNode(1), vnNet = supplyNode(-1);
+  if (ops.some(o => o.nodes.length === 3)) {
+    els.push({ kind: 'V', name: 'VCC', nodes: ['__VP', '0'], value: 12 }, { kind: 'V', name: 'VEE', nodes: ['0', '__VN'], value: 12 });
+    notes.push('The LTspice op-amp has no supply pins, so it was placed as an LM1458 with ±12 V supplies (VCC and VEE) added.');
+    for (const o of ops) if (o.nodes.length === 3) o.nodes = [o.nodes[0], o.nodes[1], '__VP', '__VN', o.nodes[2]];
+  }
+  if (ops.length) { vpNet = ops[0].nodes[2] === '0' ? null : ops[0].nodes[2]; vnNet = ops[0].nodes[3] === '0' ? null : ops[0].nodes[3]; }
+  // rails: a net that needs the other side of the board gets a free rail there, tied by a long jumper
+  const railNet = { TN: '0', TP: vpNet, BN: vnNet, BP: null };
+  const railUsed = { TP: new Set(), TN: new Set(), BP: new Set(), BN: new Set() };
+  const color = net => net === '0' ? '#2b2f33' : net === vnNet ? '#2b63c4' : net === vpNet ? '#d23b3b' : '#e3a514';
+  const wire = (a, b, net) => addPart({ type: 'wire', a, b, name: 'Jumper', color: color(net) });
+  let tieCol = 30;
+  const railFor = (net, top) => {
+    const mine = Object.keys(railNet).filter(r => railNet[r] === net);
+    const side = mine.find(r => (r[0] === 'T') === top);
+    if (side) return side;
+    const free = Object.keys(railNet).find(r => railNet[r] === null && (r[0] === 'T') === top);
+    if (free && mine.length) {
+      const c = tieCol--;
+      railNet[free] = net; railUsed[free].add(c); railUsed[mine[0]].add(c);
+      wire(mine[0] + c, free + c, net);
+      return free;
+    }
+    return mine[0];
+  };
+  const railHole = (r, near) => {
+    for (let d = 0; d < 30; d++) for (const c of [near - d, near + d]) if (c >= 1 && c <= 30 && !railUsed[r].has(c)) { railUsed[r].add(c); return r + c; }
+    throw new Error('Ran out of rail holes.');
+  };
+  const onRails = net => net === '0' || net === vpNet || net === vnNet;
+  // strips: 'U5' (a–e) or 'L5' (f–j); each keeps its last hole free for a jumper to the next strip of its net
+  const strips = new Map(), netStrips = new Map(), chipCols = new Set();
+  const ROWS = { U: ['a', 'b', 'c', 'd', 'e'], L: ['j', 'i', 'h', 'g', 'f'] };
+  const order = [];
+  for (const h of ['U', 'L']) { for (let c = 4; c <= 30; c += 2) order.push(h + c); for (let c = 5; c <= 30; c += 2) order.push(h + c); }
+  const takeHole = (k, last) => { const s = strips.get(k); return last ? s.free.pop() : s.free.length > 1 ? s.free.shift() : null; };
+  const linkToRail = (k, net) => wire(takeHole(k, true), railHole(railFor(net, k[0] === 'U'), +k.slice(1)), net);
+  // a strip joins its net: by jumper to the net's previous strip, or to its rail
+  const joinStrip = (k, net) => {
+    const prev = (netStrips.get(net) || []).slice(-1)[0];
+    if (!netStrips.has(net)) netStrips.set(net, []);
+    netStrips.get(net).push(k);
+    if (prev) wire(takeHole(prev, true), takeHole(k, true), net);
+    else if (onRails(net)) linkToRail(k, net);
+  };
+  // a new strip goes about three columns from the part's other lead, so parts stay short and readable
+  const newStrip = (net, prefer, near) => {
+    const score = x => (x[0] === prefer ? 0 : 100) + (near ? Math.abs(Math.abs(+x.slice(1) - near) - 3) : order.indexOf(x) / 100);
+    const k = order.filter(x => !strips.has(x) && !chipCols.has(+x.slice(1))).sort((a, b) => score(a) - score(b))[0];
+    if (!k) throw new Error('This circuit has more nodes than a half-size breadboard can hold.');
+    strips.set(k, { net, free: ROWS[k[0]].map(r => r + k.slice(1)) });
+    joinStrip(k, net);
+    return k;
+  };
+  const holeFor = (net, prefer, near) => {
+    if (onRails(net)) return railHole(railFor(net, prefer !== 'L'), near || 3);
+    for (const k of netStrips.get(net) || []) { const h = takeHole(k); if (h) return h; }
+    return takeHole(newStrip(net, prefer, near));
+  };
+  // chips
+  const units = ops.map(o => {
+    const m = /741/.test(o.model) ? 'U-LM741' : /358/.test(o.model) ? 'U-LM358' : 'U-LM1458';
+    return { o, m };
+  });
+  const chips = [];
+  for (const u of units) {
+    const c = CATALOG_BY_ID[u.m];
+    const open = chips.find(ch => ch.m === u.m && ch.units.length < c.units.length && ch.vp === u.o.nodes[2] && ch.vn === u.o.nodes[3]);
+    if (open) open.units.push(u.o); else chips.push({ m: u.m, units: [u.o], vp: u.o.nodes[2], vn: u.o.nodes[3] });
+  }
+  if (chips.length > 4) throw new Error('More than four op-amp chips will not fit on a half-size breadboard.');
+  chips.forEach((ch, i) => {
+    const col = [16, 23, 8, 1][i];
+    for (let c = col - 1; c <= col + 4; c++) chipCols.add(c);
+    const cat = CATALOG_BY_ID[ch.m], pins = footprintHoles('dip8', 'f' + col);
+    const pinNet = new Array(8).fill(null);
+    pinNet[cat.vp] = ch.vp; pinNet[cat.vn] = ch.vn;
+    ch.units.forEach((o, k) => { const u = cat.units[k]; pinNet[u.inp] = o.nodes[0]; pinNet[u.inn] = o.nodes[1]; pinNet[u.out] = o.nodes[4]; });
+    const name = uniq(ch.units[0].name.replace(/^X/i, '').replace(/[A-Z]$/, '') || 'U' + (i + 1));
+    addPart(Object.assign({ type: 'OPAMP', model: ch.m, name, pins }, JSON.parse(JSON.stringify(cat.defaults || {}))));
+    pins.forEach((h, k) => {
+      const sk = (h[0] <= 'e' ? 'U' : 'L') + parseHole(h).c;
+      strips.set(sk, { net: pinNet[k], free: ROWS[sk[0]].map(r => r + sk.slice(1)).filter(x => x !== h) });
+      if (pinNet[k]) joinStrip(sk, pinNet[k]);
+    });
+  });
+  // supplies between rails first, then always the part with the most nodes already on the board,
+  // so each new strip lands next to what it connects to
+  const rest = els.filter(e => e.kind !== 'X'), two = [];
+  const known = new Set();
+  while (rest.length) {
+    const sc = e => (e.kind === 'V' && onRails(e.nodes[0]) && onRails(e.nodes[1]) ? 10 : 0) + e.nodes.reduce((t, n) => t + (onRails(n) ? 1 : netStrips.has(n) ? 2 : known.has(n) ? 1 : 0), 0);
+    let bi = 0; rest.forEach((e, i) => { if (sc(e) > sc(rest[bi])) bi = i; });
+    const e = rest.splice(bi, 1)[0]; e.nodes.forEach(n => known.add(n)); two.push(e);
+  }
+  let srcCol = 1;
+  for (const e of two) {
+    const [n1, n2] = e.nodes;
+    if (n1 === n2) { notes.push(`${e.name}: both ends are on the same node, so it was left out.`); continue; }
+    let a, b;
+    const isSrc = e.kind === 'V', railPair = isSrc && onRails(n1) && onRails(n2);
+    if (railPair) { const c = srcCol; srcCol += 2; a = holeFor(n1, n1 === vnNet ? 'L' : 'U', c); b = holeFor(n2, n2 === vnNet ? 'L' : 'U', c); }
+    else {
+      // place the lead whose node is already on the board first, then the other one near it
+      const known = n => onRails(n) || netStrips.has(n);
+      const first = !known(n1) && known(n2) ? 1 : 0;
+      const nets = first ? [n2, n1] : [n1, n2], h = [];
+      h[0] = onRails(nets[0]) && !onRails(nets[1]) ? null : holeFor(nets[0], 'U');
+      if (h[0] === null) { h[1] = holeFor(nets[1], 'U'); h[0] = holeFor(nets[0], h[1][0] <= 'e' ? 'U' : 'L', parseHole(h[1]).c); }
+      else h[1] = holeFor(nets[1], h[0][0] <= 'e' || RAILS.includes(h[0].slice(0, 2)) ? 'U' : 'L', parseHole(h[0]).c);
+      [a, b] = first ? [h[1], h[0]] : h;
+    }
+    const p = { name: uniq(e.name) };
+    if (e.kind === 'R') Object.assign(p, { type: 'R', model: 'R-CF' }, CATALOG_BY_ID['R-CF'].defaults, { value: e.value });
+    else if (e.kind === 'C') Object.assign(p, { type: 'C', model: 'C-X7R' }, CATALOG_BY_ID['C-X7R'].defaults, { value: e.value }, e.rser ? { esr: e.rser } : {});
+    else if (e.kind === 'L') Object.assign(p, { type: 'L', model: 'L-IDEAL' }, CATALOG_BY_ID['L-IDEAL'].defaults, { value: e.value, dcr: e.rser || 0 });
+    else if (e.kind === 'D') {
+      const led = /led/i.test(e.model);
+      const color = led ? (Object.keys(LED_TYPES).find(c => new RegExp(c, 'i').test(e.model)) || 'red') : null;
+      const m = led ? 'LED-' + color : /400\d/.test(e.model) ? 'D-1N4001' : 'D-1N4148';
+      Object.assign(p, { type: CATALOG_BY_ID[m].type, model: m }, JSON.parse(JSON.stringify(CATALOG_BY_ID[m].defaults || {})));
+      if (!led && !/4148|400\d/.test(e.model)) notes.push(`${e.name}: diode model ${e.model} was placed as a 1N4148.`);
+    } else if (e.ac) Object.assign(p, { type: 'VAC', model: e.rser > 0 ? 'VAC-GEN' : 'VAC-IDEAL', value: e.value, phase: e.phase || 0 }, e.rser > 0 ? { rint: e.rser } : {});
+    else Object.assign(p, { type: 'VDC', model: 'V-IDEAL', value: e.value }, e.rser > 0 ? { rint: e.rser } : {});
+    addPart(Object.assign(p, { a, b }));
+  }
+  addPart({ type: 'GND', a: railHole('TN', 2), b: null, name: 'GND' });
+  const acSrc = els.find(e => e.kind === 'V' && e.ac);
+  return { parts, notes, mode: acSrc ? 'AC' : 'DC', freq: (acSrc && acSrc.freq) || null };
+}
+
+/* Text of a netlist or .asc file → board, or { error } */
+function importLTspice(text) {
+  const asc = /^\s*Version\s+\d/m.test(text) && /^\s*SHEET\b/m.test(text);
+  const parsed = asc ? parseAsc(text) : parseNetlist(text);
+  if (!parsed.elements.length) return { error: asc ? 'No parts this tool knows were found in the schematic.' : 'No circuit elements were found. Paste the netlist from LTspice (View → SPICE Netlist), or open a .asc, .net or .cir file.', notes: parsed.notes };
+  try {
+    const r = layoutCircuit(parsed.elements);
+    r.notes = parsed.notes.concat(r.notes);
+    r.kind = asc ? 'schematic' : 'netlist';
+    r.count = parsed.elements.length;
+    return r;
+  } catch (e) { return { error: e.message, notes: parsed.notes }; }
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     E_BASE, SERIES_TOL, POWER_RATINGS, LED_TYPES, CATALOG, CATALOG_BY_ID, catalogOf, snap, isInSeries, parseEng, fmtEng, rkm, colorBands, smdCode,
-    capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, spiceNetlist, SAMPLE_CIRCUITS, sampleParts
+    capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, spiceNetlist, SAMPLE_CIRCUITS, sampleParts,
+    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice
   };
 }

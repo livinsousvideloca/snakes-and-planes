@@ -122,6 +122,10 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .insp-hint b { color: var(--accent-2); font-weight: 500; }
 .about p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }
 .about h3 { font-size: 12px; margin: 10px 0 4px; }
+.importbox { display: grid; gap: 10px; margin-bottom: 12px; }
+.importbox textarea { width: 100%; box-sizing: border-box; font-family: var(--f-mono); font-size: 12.5px; }
+.imp-actions { display: flex; align-items: center; gap: 8px; }
+.importbox ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
 .about-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .about-head h2 { margin-bottom: 8px; }
 .about-head h2::after { display: none; }
@@ -359,8 +363,16 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           <label class="small muted" title="Show node voltages on the board"><input type="checkbox" id="showv" checked> Show voltages</label>
           <span class="grow"></span>
           <select id="sample" aria-label="Sample circuits"></select>
+          <button class="btn sm" id="btn-import" title="Build the board from an LTspice netlist or schematic">Import LTspice</button>
           <button class="btn sm" id="btn-copy" title="Copy this board as a SPICE netlist to paste into LTspice">Copy for LTspice</button>
           <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
+        </div>
+        <div class="panel importbox" id="importbox" hidden>
+          <div class="about-head"><h2>Import from LTspice</h2><button class="btn sm" id="imp-x">Close</button></div>
+          <p class="note">Open a schematic (.asc) or netlist (.net, .cir), or paste the netlist from LTspice (View → SPICE Netlist). Ground and supplies go on the rails, every other node gets its own column, and op-amps become LM1458 chips. This replaces the board.</p>
+          <textarea id="imp-text" rows="6" spellcheck="false" placeholder="* paste a netlist here&#10;V1 N001 0 6&#10;R1 N001 N002 1k&#10;R2 N002 0 2k"></textarea>
+          <div class="imp-actions"><label class="btn sm" for="imp-file">Open a file…</label><input type="file" id="imp-file" accept=".asc,.net,.cir,.sp,.txt" hidden><span class="grow"></span><button class="btn sm primary" id="imp-go">Build the board</button></div>
+          <div id="imp-out" aria-live="polite"></div>
         </div>
         <div class="boardscroll">
           <svg id="board" viewBox="0 0 612 334" aria-label="Breadboard">
@@ -1181,6 +1193,34 @@ $('showv').addEventListener('change', e => { state.showV = e.target.checked; ren
 }
 $('about').addEventListener('click', e => { if (e.target.id === 'about-x') { state.about = null; renderAbout(); save(); } });
 $('sample').addEventListener('change', e => { if (!e.target.value) return; loadSample(e.target.value); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTool('select'); });
+/* ---------- LTspice import ---------- */
+function runImport(text) {
+  const out = $('imp-out');
+  const r = importLTspice(text);
+  const list = n => n.length ? `<ul>${n.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  if (r.error) { out.innerHTML = `<div class="errbox">${esc(r.error)}</div>` + list(r.notes || []); return; }
+  state.parts = r.parts; uid = r.parts.length + 1;
+  state.mode = r.mode; if (r.freq) state.freq = r.freq;
+  state.sample = ''; state.about = null; state.selected = null;
+  $('freq').value = fmtEng(state.freq, '').replace(' ', '');
+  setTool('select');
+  out.innerHTML = `<p class="note"><b>Built ${r.count} part${r.count === 1 ? '' : 's'} from the ${r.kind}${r.mode === 'AC' ? ', in AC at ' + esc(fmtEng(state.freq, 'Hz')) : ''}.</b> Hover a column to check its node, and compare the readings with LTspice.</p>` + list(r.notes);
+}
+$('btn-import').addEventListener('click', () => { $('importbox').hidden = !$('importbox').hidden; if (!$('importbox').hidden) $('imp-text').focus(); });
+$('imp-x').addEventListener('click', () => { $('importbox').hidden = true; });
+$('imp-go').addEventListener('click', () => runImport($('imp-text').value));
+$('imp-file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.arrayBuffer().then(buf => {
+    const b = new Uint8Array(buf);
+    // LTspice writes some files as UTF-16
+    const wide = (b[0] === 0xff && b[1] === 0xfe) || (b.length > 1 && b[1] === 0);
+    const text = new TextDecoder(wide ? 'utf-16le' : 'utf-8').decode(buf);
+    $('imp-text').value = text;
+    runImport(text);
+  });
+  e.target.value = '';
+});
 let clearArmed = false, clearT = null;
 $('btn-clear').addEventListener('click', e => {
   if (!clearArmed) { clearArmed = true; e.target.textContent = 'Sure?'; clearT = setTimeout(() => { clearArmed = false; e.target.textContent = 'Clear'; }, 3000); return; }
