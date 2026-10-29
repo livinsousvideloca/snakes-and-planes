@@ -228,6 +228,48 @@ tbody tr { cursor: pointer; }
 .mwarn { color: var(--warn); }
 #btn-meter[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 
+/* oscilloscope */
+.scopepanel { display: grid; gap: 8px; padding: 10px; }
+#scope { width: 100%; height: auto; display: block; user-select: none; -webkit-user-select: none; }
+#scope text { font-family: var(--f-mono); }
+.scopectl { display: grid; gap: 6px; font-size: 12.5px; }
+.scrow { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.scrow > b { min-width: 46px; font-family: var(--f-display); letter-spacing: 0.04em; }
+.scrow .val { font-family: var(--f-mono); min-width: 62px; text-align: center; }
+.scopectl .btn { text-transform: none; letter-spacing: 0.02em; font-family: var(--f-body); padding: 3px 8px; }
+.scopectl .btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.sc1 { color: #f2d530; } .sc2 { color: #36c5e0; } .scm { color: #e46fd8; }
+.probe.ch1 i { background: #f2d530; } .probe.ch2 i { background: #36c5e0; } .probe.gclip i { background: #111; border: 2px solid #3fa34d; }
+#btn-scope[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+
+/* homework check table in the sample panel */
+.hwcheck td, .hwcheck th { padding: 4px 6px; font-size: 12.5px; }
+.hwcheck td { font-family: var(--f-mono); }
+.hwcheck tbody tr { cursor: default; }
+.okmark { color: var(--ok); } .badmark { color: var(--bad); }
+
+/* homework practice */
+.hwgrid { display: grid; gap: 14px; max-width: 980px; margin: 0 auto; }
+.hwhead .methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.hwhead ol, .hwhead ul { margin: 4px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.5; }
+.hwprob { display: grid; gap: 12px; }
+.hwprob .probtop { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+.hwsch { width: 320px; max-width: 100%; height: auto; color: var(--ink); }
+.hwsch text { font-family: var(--f-mono); font-size: 10.5px; fill: var(--ink); }
+.hwstep { border-top: 1px dashed var(--line); padding-top: 10px; display: grid; gap: 8px; }
+.hwstep .ask { margin: 0; font-size: 14px; }
+.hwstep .ask small { display: block; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.hwans { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 10px; align-items: start; }
+.hwans label { display: grid; gap: 3px; align-content: start; font-size: 12.5px; color: var(--muted); }
+.hwans input { width: 100%; font-family: var(--f-mono); font-variant-ligatures: none; }
+.hwans input.right { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+.hwans input.wrong { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
+.hwans .why { font-size: 12px; color: var(--bad); }
+.hwstep .key { color: var(--ok); font-family: var(--f-mono); font-size: 12.5px; margin: 0; }
+.hwbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hwthink textarea { width: 100%; }
+.hwprog { font-size: 13px; color: var(--muted); }
+
 /* calculators */
 .calcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; align-items: start; }
 .calc { display: grid; gap: 12px; }
@@ -370,6 +412,7 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
 
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-board" data-tab="board" aria-selected="true">Breadboard</button>
+    <button class="tab" role="tab" id="tab-hw" data-tab="hw" aria-selected="false">Homework</button>
     <button class="tab" role="tab" id="tab-calc" data-tab="calc" aria-selected="false">Calculators</button>
   </nav>
 
@@ -396,6 +439,7 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           <span class="grow"></span>
           <select id="sample" aria-label="Sample circuits"></select>
           <button class="btn sm" id="btn-meter" aria-pressed="true" title="Show or hide the multimeter">Meter</button>
+          <button class="btn sm" id="btn-scope" aria-pressed="false" title="Show or hide the oscilloscope">Scope</button>
           <button class="btn sm" id="btn-import" title="Build the board from an LTspice netlist or schematic">Import LTspice</button>
           <button class="btn sm" id="btn-copy" title="Copy this board as a SPICE netlist to paste into LTspice">Copy for LTspice</button>
           <button class="btn sm danger" id="btn-clear" title="Clear board">Clear</button>
@@ -423,6 +467,10 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           <svg id="meter" viewBox="0 0 220 400" aria-label="Multimeter"></svg>
           <div class="meterside" id="meterside" aria-live="polite"></div>
         </div>
+        <div class="panel scopepanel" id="scopepanel" hidden>
+          <svg id="scope" viewBox="0 0 320 262" aria-label="Oscilloscope screen"></svg>
+          <div class="scopectl" id="scopectl" aria-live="polite"></div>
+        </div>
         <div class="panel about" id="about" hidden></div>
         <div class="panel">
           <div id="summary"></div>
@@ -430,6 +478,11 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
         </div>
       </aside>
     </div>
+  </section>
+
+  <!-- ================= HOMEWORK ================= -->
+  <section id="view-hw" role="tabpanel" hidden>
+    <div class="hwgrid" id="hwview"></div>
   </section>
 
   <!-- ================= CALCULATORS ================= -->
@@ -519,6 +572,17 @@ dl.res dd.big { color: var(--accent-2); text-shadow: 0 0 14px rgba(217, 168, 78,
           <label>C (F, blank = none)<input type="text" id="z-c" value="1u"></label>
         </div>
         <div id="z-out"></div>
+      </section>
+
+      <section class="panel calc" id="c-ac2">
+        <header><h3>AC circuit two ways</h3><p>Method 1: combine impedances · Method 2: KVL / KCL</p></header>
+        <div class="fields">
+          <label>Vs magnitude (V)<input type="text" id="ac2-vm" value="32"></label>
+          <label>Vs angle (°)<input type="text" id="ac2-va" value="0"></label>
+          <label style="grid-column:1/-1">Series parts (R, XL, XC in ohms)<input type="text" id="ac2-s" value="R 5.6"></label>
+          <label style="grid-column:1/-1">Parallel group, two branches (blank = none)<input type="text" id="ac2-p" value="R 20, XL 15"></label>
+        </div>
+        <div id="ac2-out"></div>
       </section>
 
     </div>
@@ -623,6 +687,7 @@ function loadSample(key) {
   state.parts = sampleParts(key);
   uid = state.parts.length + 1;
   state.mode = s.mode; state.freq = s.freq || state.freq; state.selected = null; state.sample = key; state.about = key;
+  if (s.scope) { Object.assign(scope, s.scope, { on: true, math: false, cpl: ['DC', 'DC'], show: [true, true] }); scopeRd = scopeMeasure(state.parts, { mode: state.mode, freq: state.freq }, scope); scopeAuto(); }
 }
 
 /* ---------- state ---------- */
@@ -633,6 +698,10 @@ const state = {
 };
 // the multimeter: dial, yellow-button state, probe holes, red-lead jack and fuses
 const meter = Object.assign({ on: true, fn: 'vdc', shift: false, red: null, black: null, jack: 'V', fuses: { mA: false, A: false } }, (saved && saved.meter) || {});
+// the oscilloscope: probe holes, volts/div, position, coupling, time/div and trigger
+const SC_COL = ['#f2d530', '#36c5e0'], SC_MATH = '#e46fd8';
+const scope = Object.assign({ on: false, ch1: null, ch2: null, gnd: null, vdiv: [1, 1], pos: [0, 0], cpl: ['DC', 'DC'], show: [true, true], tdiv: 2e-4, trig: 0, level: 0, math: false }, (saved && saved.scope) || {});
+let scopeRd = null;
 // boards saved by earlier versions may hold parts that are no longer in the library
 const known = p => p.type === 'wire' || p.type === 'GND' || (ELEMENT_TYPES.includes(p.type) && (!p.model || CATALOG_BY_ID[p.model]));
 if (saved && Array.isArray(saved.parts)) {
@@ -641,7 +710,7 @@ if (saved && Array.isArray(saved.parts)) {
   if (state.parts.length < saved.parts.length) state.sample = '';
   uid = Math.max(1, ...state.parts.map(p => +String(p.id).slice(1) + 1 || 1));
 } else loadSample('basics');
-function save() { store.set('bb-bench-v3', { parts: state.parts, mode: state.mode, freq: state.freq, showV: state.showV, sample: state.sample, about: state.about, meter }); }
+function save() { store.set('bb-bench-v3', { parts: state.parts, mode: state.mode, freq: state.freq, showV: state.showV, sample: state.sample, about: state.about, meter, scope }); }
 
 /* ---------- board geometry ---------- */
 const P = 18, X0 = 40;
@@ -866,6 +935,7 @@ function renderStatus() {
     if (state.pending) txt += ' · click to place the second lead';
     el.innerHTML = txt;
   } else if (state.tool.startsWith('probe-')) el.innerHTML = `Click the hole where the ${state.tool.slice(6)} probe tip goes. Esc cancels.`;
+  else if (state.tool.startsWith('scope-')) el.innerHTML = state.tool === 'scope-gnd' ? 'Click the hole for the scope\'s ground clip. It is tied to earth, like the circuit ground. Esc cancels.' : `Click the hole where the ${state.tool.slice(6).toUpperCase()} probe tip goes. Esc cancels.`;
   else if (state.tool === 'GND') el.innerHTML = 'Click a hole to mark it as ground (0 V).';
   else if (state.tool === 'wire') el.innerHTML = state.pending ? 'Click where the other end of the jumper goes. Esc cancels.' : 'Click the hole for one end of the jumper.';
   else if (c) {
@@ -1087,11 +1157,21 @@ function renderAbout() {
     <p>${esc(s.about)}</p>
     <h3>What to expect</h3><p>${esc(s.expect)}</p>
     <h3>Try this</h3><p>${esc(s.try)}</p>
+    ${hwCheckHTML(s)}
     ${state.sample !== state.about ? '<p class="note">You have changed the board since loading this sample, so the readings may differ from the numbers above.</p>' : ''}`;
+}
+function hwCheckHTML(s) {
+  if (!s.homework) return '';
+  const rows = homeworkChecks(state.about, result);
+  const link = `<button class="btn sm" data-hwopen="${s.homework[1]}">Work it step by step</button>`;
+  if (!rows) return `<h3>Homework vs board</h3><p class="note">Switch to AC to compare the board with the homework answers.</p>${link}`;
+  return `<h3>Homework vs board</h3><div class="tablewrap"><table class="hwcheck"><thead><tr><th></th><th>Homework</th><th>Board</th><th></th></tr></thead><tbody>${rows.map(r =>
+    `<tr><th>${esc(r.label)}</th><td>${r.want ? esc(fmtPolar(r.want)) : '—'}</td><td>${r.got ? esc(fmtPolar(r.got)) : '—'}</td><td class="${r.ok ? 'okmark' : 'badmark'}">${r.ok ? '✔' : '✘'}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note">Board values are rms phasors at ${esc(fmtEng(state.freq, 'Hz'))}. A DMM shows only the magnitudes.</p>${link}`;
 }
 function renderBoardView() {
   recompute();
-  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); renderMeter(); revealSelectedReading();
+  renderParts(); renderVolt(); renderOverlay(); renderStatus(); renderInspector(); renderAbout(); renderResults(); renderSummary(); renderMeter(); renderScope(); revealSelectedReading();
   $('mode-dc').setAttribute('aria-pressed', state.mode === 'DC');
   $('mode-ac').setAttribute('aria-pressed', state.mode === 'AC');
   $('freqwrap').hidden = state.mode !== 'AC';
@@ -1239,6 +1319,18 @@ function renderProbes() {
       <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="6" stroke-linecap="round" opacity="0.92"/>
       <circle cx="${x}" cy="${y}" r="3.2" fill="none" stroke="${col === '#1b1b1b' ? '#1b1b1b' : '#c62f2f'}" stroke-width="1.4"/>`;
   }
+  if (scope.on) {
+    for (const [k, col, dx] of [[scope.ch1, SC_COL[0], 0.55], [scope.ch2, SC_COL[1], -0.15]]) {
+      if (!k) continue;
+      const { x, y } = holeXY(k), up = y > 90 ? -1 : 1, x2 = x + dx * 34, y2 = y + up * 30;
+      s += `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+        <path d="M${x - 3} ${y + up * 3} q3 ${-up * 7} 6 0" fill="none" stroke="#d0d0d0" stroke-width="1.4"/><circle cx="${x}" cy="${y}" r="3.4" fill="none" stroke="${col}" stroke-width="1.4"/>`;
+    }
+    if (scope.gnd) {
+      const { x, y } = holeXY(scope.gnd), up = y > 90 ? -1 : 1;
+      s += `<line x1="${x}" y1="${y}" x2="${x + 14}" y2="${y + up * 22}" stroke="#1b1b1b" stroke-width="2"/><rect x="${x - 4}" y="${y - 3}" width="8" height="6" rx="1.5" fill="#3fa34d" stroke="#1b1b1b" stroke-width="1"/>`;
+    }
+  }
   $('bb-probe').innerHTML = s;
 }
 $('btn-meter').addEventListener('click', () => { meter.on = !meter.on; if (!meter.on && state.tool.startsWith('probe')) setTool('select'); renderMeter(); save(); });
@@ -1314,6 +1406,12 @@ $('board').addEventListener('click', e => {
     renderPalette(); renderBoardView(); return;
   }
   const h = nearestHole(e); if (!h) return;
+  if (state.tool.startsWith('scope-')) {
+    const which = state.tool.slice(6);
+    scope[which] = h;
+    setTool('select');
+    return;
+  }
   if (state.tool.startsWith('probe-')) {
     const which = state.tool.slice(6);
     meter[which] = h; resetMeterModes();
@@ -1426,7 +1524,11 @@ $('showv').addEventListener('change', e => { state.showV = e.target.checked; ren
   const topics = [...new Set(Object.values(SAMPLE_CIRCUITS).map(s => s.topic))];
   $('sample').innerHTML = '<option value="">Load a sample circuit…</option>' + topics.map(t => `<optgroup label="${esc(t)}">${Object.entries(SAMPLE_CIRCUITS).filter(([, s]) => s.topic === t).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('')}</optgroup>`).join('');
 }
-$('about').addEventListener('click', e => { if (e.target.id === 'about-x') { state.about = null; renderAbout(); save(); } });
+$('about').addEventListener('click', e => {
+  if (e.target.id === 'about-x') { state.about = null; renderAbout(); save(); }
+  const o = e.target.dataset.hwopen;
+  if (o) { setTab('hw'); const el = $('hwp-' + o); if (el) el.scrollIntoView({ block: 'start' }); }
+});
 $('sample').addEventListener('change', e => { if (!e.target.value) return; loadSample(e.target.value); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTool('select'); });
 /* ---------- LTspice import ---------- */
 function runImport(text) {
@@ -1650,6 +1752,27 @@ const calcs = {
     return dl(rows) + work(steps) + dia;
   }
 };
+// element names for the two-ways calculator: R1, R2… when a kind appears more than once
+function ac2Elements() {
+  const s = parseElements($('ac2-s').value), p = parseElements($('ac2-p').value);
+  if (s.error || p.error) return { error: s.error || p.error };
+  const all = s.elements.concat(p.elements), count = {}, seen = {};
+  for (const e of all) count[e.kind] = (count[e.kind] || 0) + 1;
+  for (const e of all) { seen[e.kind] = (seen[e.kind] || 0) + 1; e.name = e.kind + (count[e.kind] > 1 ? seen[e.kind] : ''); }
+  return { series: s.elements, parallel: p.elements };
+}
+calcs.ac2 = function () {
+  const vm = V('ac2-vm'), va = $('ac2-va').value.trim() ? V('ac2-va') : 0;
+  if (!(vm > 0) || !isFinite(va)) return errMsg('Enter the source magnitude and angle, for example 32 and 0.');
+  const el = ac2Elements();
+  if (el.error) return errMsg(esc(el.error));
+  const r = acTwoWays({ vs: [vm, va], series: el.series, parallel: el.parallel });
+  if (r.error) return errMsg(esc(r.error));
+  const m = k => r.steps.filter(st => st.method === k).map(st => `<b>${st.n}.</b> ${esc(st.ask)}<br>${st.lines.map(esc).join('<br>')}`);
+  return dl([['Circuit', { series: 'Series', parallel: 'Parallel', seriesparallel: 'Series-parallel' }[r.kind]], ['ZT', `${fmtRect(r.ZT, 'Ω')} = ${fmtPolar(r.ZT, 'Ω')}`], [r.kind === 'parallel' ? 'IT' : 'I', fmtPolar(r.I, 'A'), true]]) +
+    '<h4 class="eyebrow">Method 1: combine impedances</h4>' + work(m(1)) + `<h4 class="eyebrow">Method 2: ${r.kind === 'series' ? 'KVL' : r.kind === 'parallel' ? 'KCL' : 'KVL and KCL'}</h4>` + work(m(2)) +
+    '<p class="note">Write parts as R 30, XL 60, XC 20. Leave the parallel box blank for a series circuit, or the series box blank for two branches in parallel.</p>';
+};
 function runCalcs() {
   for (const [k, fn] of Object.entries(calcs)) {
     const out = $(k + '-out');
@@ -1659,10 +1782,231 @@ function runCalcs() {
 $('calcgrid').addEventListener('input', runCalcs);
 $('calcgrid').addEventListener('change', runCalcs);
 
+/* ===================== Homework practice ===================== */
+// each answer box checks against the worked solution; typed answers can be rectangular (a + jb) or polar (M∠θ)
+const hwSaved = store.get('bb-hw-v1') || {};
+const hw = { ans: hwSaved.ans || {}, think: hwSaved.think || {}, shown: hwSaved.shown || {}, checked: hwSaved.checked || {} };
+const hwSave = () => store.set('bb-hw-v1', hw);
+const hwSolutions = {};
+for (const set of HOMEWORK) for (const pr of set.problems) hwSolutions[pr.key] = acTwoWays(pr.spec);
+function ansText(a) {
+  const u = a.unit ? ' ' + a.unit : '';
+  return a.form === 'rect' ? fmtRect(a.z) + u : a.form === 'polar' ? fmtPolar(a.z) + u : `${fmtRect(a.z)} = ${fmtPolar(a.z)}${u}`;
+}
+function hwWhy(text, want) {
+  const z = parsePhasor(text);
+  if (!z) return 'Write it as a + jb or as M∠θ (you can type < for ∠).';
+  const dm = Math.abs(cabs(z) - cabs(want)) <= Math.max(0.01 * cabs(want), 0.01);
+  let da = cdeg(z) - cdeg(want); while (da <= -180) da += 360; while (da > 180) da -= 360;
+  if (dm) {
+    if (Math.abs(cdeg(z) + cdeg(want)) < 0.5) return 'Right size, but the angle has the wrong sign.';
+    if (Math.abs(Math.abs(da) - 180) < 0.5) return 'Right size, but 180° off: check the quadrant (is the real part negative?).';
+    return 'Right magnitude; check the angle.';
+  }
+  if (Math.abs(da) < 0.5) return 'Right angle; check the magnitude.';
+  return 'Not yet. Redo this step from the line above.';
+}
+// schematic in the style of the homework sheet: source on the left, series parts along the top, branches down
+function hwSchematic(spec) {
+  const S = spec.series || [], Pl = spec.parallel || [];
+  const lab = e => `${e.kind === 'R' ? e.name : 'X' + e.kind} = ${n4(e.ohms)} Ω`;
+  const g = (key, x, y, vert) => `<g transform="translate(${vert ? x + 11 : x - 22},${vert ? y - 22 : y - 11})${vert ? ' rotate(90)' : ''}" fill="none" stroke="currentColor" stroke-width="1.5">${symbol(key)}</g>`;
+  const top = 30, bot = 130, xs = 40;
+  let s = `<circle cx="${xs}" cy="80" r="15" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M${xs - 8} 80 c3 -9 5 -9 8 0 s5 9 8 0" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <text x="${xs - 20}" y="84" text-anchor="end">Vs = ${n4(spec.vs[0])}∠${n4(spec.vs[1] || 0)}° V</text>`;
+  let wires = `M${xs} 65 V${top} M${xs} 95 V${bot}`;
+  const vertList = Pl.length ? Pl : S.slice(-1), horiz = Pl.length ? S : S.slice(0, -1);
+  const xRight = 290, x0 = xs + 30;
+  const hEnd = horiz.length ? x0 + horiz.length * 64 : xs;
+  wires += ` M${xs} ${top} H${x0}`;
+  horiz.forEach((e, k) => { const cx = x0 + 32 + k * 64; s += g(e.kind, cx, top, false) + `<text x="${cx}" y="${top - 12}" text-anchor="middle">${lab(e)}</text>`; wires += ` M${cx - 22} ${top} H${cx - 22}`; });
+  const vx = vertList.map((e, k) => vertList.length === 1 ? xRight - 40 : hEnd + 44 + k * (xRight - 30 - hEnd - 44));
+  wires += ` M${hEnd} ${top} H${vx[vx.length - 1]} M${xs} ${bot} H${vx[vx.length - 1]}`;
+  vertList.forEach((e, k) => { s += g(e.kind, vx[k], 80, true) + `<text x="${vx[k] + 14}" y="84">${lab(e)}</text>`; wires += ` M${vx[k]} ${top} V58 M${vx[k]} 102 V${bot}`; });
+  return `<svg class="hwsch" viewBox="-60 0 420 150" aria-hidden="true"><path d="${wires}" fill="none" stroke="currentColor" stroke-width="1.5"/>${s}</svg>`;
+}
+function hwStepHTML(pr, st) {
+  const id = `${pr.key}.${st.n}`;
+  const inputs = st.answers.map((a, k) => {
+    const key = id + '.' + k, val = hw.ans[key] || '';
+    const ok = hw.checked[id] && val ? phasorMatches(val, a.z) : null;
+    return `<label>${esc(a.label)}${a.unit ? ' (' + esc(a.unit) + ')' : ''}<input type="text" data-hwans="${key}" value="${esc(val)}" placeholder="${a.form === 'polar' ? 'M∠θ' : a.form === 'rect' ? 'a + jb' : 'a + jb or M∠θ'}" class="${ok === true ? 'right' : ok === false ? 'wrong' : ''}" autocomplete="off" spellcheck="false">
+      ${ok === false ? `<span class="why">${esc(hwWhy(val, a.z))}</span>` : ''}</label>`;
+  }).join('');
+  return `<div class="hwstep" id="hw-${pr.key}-${st.n}"><p class="ask"><small>Method ${st.method} · step ${st.n}</small>${esc(st.ask)}</p>
+    <div class="hwans">${inputs}</div>
+    <div class="hwbtns"><button class="btn sm primary" data-hwcheck="${id}">Check</button><button class="btn sm" data-hwshow="${id}" aria-pressed="${!!hw.shown[id]}">${hw.shown[id] ? 'Hide' : 'Show'} ✔ line</button></div>
+    ${hw.shown[id] ? `<p class="key">✔ You should get: ${esc(st.answers.map(a => a.label + ' = ' + ansText(a)).join(', '))}</p>${work(st.lines.map(esc))}` : ''}</div>`;
+}
+function hwProgress(pr) {
+  const sol = hwSolutions[pr.key];
+  const done = sol.steps.filter(st => st.answers.every((a, k) => phasorMatches(hw.ans[`${pr.key}.${st.n}.${k}`] || '', a.z))).length;
+  return `${done} of ${sol.steps.length} steps right`;
+}
+function renderHomework() {
+  $('hwview').innerHTML = HOMEWORK.map(set => `
+    <section class="panel hwhead"><div class="eyebrow">ELT 1206 homework</div><h2>${esc(set.title)}</h2><p class="note">${esc(set.topic)}</p>
+      <p>${esc(set.intro)} Type each answer as a + jb or as M∠θ (or M&lt;θ), then press Check. Answers within 1% count.</p>
+      <div class="methods"><div><h3>Method 1: Combine impedances</h3><ol>${set.method1.map(t => `<li>${esc(t)}</li>`).join('')}</ol></div>
+      <div><h3>Method 2: KVL / KCL</h3><ul>${set.method2.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div></div></section>
+    ${set.problems.map(pr => `<section class="panel hwprob" id="hwp-${pr.key}">
+      <div class="probtop"><div><h2>${esc(pr.title)}</h2><p class="hwprog" id="hwprog-${pr.key}">${hwProgress(pr)}</p>
+        <div class="hwbtns"><button class="btn sm" data-hwbuild="${pr.sample}">Build it on the breadboard</button><button class="btn sm" data-hwreset="${pr.key}">Clear my answers</button></div></div>
+        ${hwSchematic(pr.spec)}</div>
+      ${hwSolutions[pr.key].steps.map(st => hwStepHTML(pr, st)).join('')}
+      <div class="hwstep hwthink"><p class="ask"><small>Think about it</small>${esc(pr.think.q)}</p>
+        <textarea rows="2" data-hwthink="${pr.key}" placeholder="Your answer">${esc(hw.think[pr.key] || '')}</textarea>
+        <div class="hwbtns"><button class="btn sm" data-hwshow="${pr.key}.think" aria-pressed="${!!hw.shown[pr.key + '.think']}">${hw.shown[pr.key + '.think'] ? 'Hide' : 'Show'} a model answer</button></div>
+        ${hw.shown[pr.key + '.think'] ? `<p class="note">${esc(pr.think.a)}</p>` : ''}</div>
+    </section>`).join('')}`).join('');
+}
+function rerenderStep(id) {
+  const [key, n] = id.split('.'), pr = HOMEWORK[0].problems.find(p => p.key === key), st = hwSolutions[key].steps[+n - 1];
+  const el = $(`hw-${key}-${n}`); if (!el) return;
+  el.outerHTML = hwStepHTML(pr, st);
+  $('hwprog-' + key).textContent = hwProgress(pr);
+}
+$('hwview').addEventListener('input', e => {
+  const a = e.target.dataset.hwans, t = e.target.dataset.hwthink;
+  if (a) { hw.ans[a] = e.target.value; e.target.classList.remove('right', 'wrong'); }
+  if (t) hw.think[t] = e.target.value;
+  hwSave();
+});
+$('hwview').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.hwans) { const id = e.target.dataset.hwans.split('.').slice(0, 2).join('.'); hw.checked[id] = true; hwSave(); rerenderStep(id); } });
+$('hwview').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  if (d.hwcheck) { hw.checked[d.hwcheck] = true; hwSave(); rerenderStep(d.hwcheck); }
+  else if (d.hwshow) { hw.shown[d.hwshow] = !hw.shown[d.hwshow]; hwSave(); if (d.hwshow.endsWith('.think')) renderHomework(); else rerenderStep(d.hwshow); }
+  else if (d.hwreset) {
+    for (const k of Object.keys(hw.ans)) if (k.startsWith(d.hwreset + '.')) delete hw.ans[k];
+    for (const o of [hw.checked, hw.shown]) for (const k of Object.keys(o)) if (k.startsWith(d.hwreset + '.')) delete o[k];
+    delete hw.think[d.hwreset]; hwSave(); renderHomework();
+  } else if (d.hwbuild) { loadSample(d.hwbuild); $('freq').value = fmtEng(state.freq, '').replace(' ', ''); setTab('board'); setTool('select'); }
+});
+
+/* ===================== Oscilloscope ===================== */
+// a two-channel bench scope: 10 × 8 divisions, trigger at the center, measurements along the bottom
+const vdivText = v => fmtEng(v, 'V', 3).replace(' ', '');
+const tdivText = t => fmtEng(t, 's', 3).replace(' ', '');
+function chTrace(q) {
+  const t = scopeRd && scopeRd.ch[q];
+  if (!t) return null;
+  return { dc: scope.cpl[q] === 'AC' ? 0 : t.dc, ph: t.ph };
+}
+function scopeTraces() {
+  const tr = [chTrace(0), chTrace(1)];
+  if (scope.math && tr[0] && tr[1]) tr.push({ dc: tr[0].dc - tr[1].dc, ph: [tr[0].ph[0] - tr[1].ph[0], tr[0].ph[1] - tr[1].ph[1]] });
+  else tr.push(null);
+  return tr;
+}
+// the time shift that puts the trigger channel's rising crossing of the level at the center of the screen
+function triggerPhase(tr) {
+  const t = tr[scope.trig], pk = t ? Math.SQRT2 * cabs(t.ph) : 0;
+  if (!t || pk < 1e-12) return { phi: 0, locked: false };
+  const c = (scope.level - t.dc) / pk;
+  if (Math.abs(c) > 1) return { phi: -cdeg(t.ph) * Math.PI / 180, locked: false };
+  return { phi: -Math.acos(c) - cdeg(t.ph) * Math.PI / 180, locked: true };
+}
+function scopeSVG() {
+  const X0 = 10, Y0 = 22, DX = 30, DY = 25, W = 300, H = 200, midY = Y0 + H / 2;
+  let s = `<rect x="0" y="0" width="320" height="262" rx="8" fill="#15181c" stroke="#2c3138"/>
+    <defs><clipPath id="scclip"><rect x="${X0}" y="${Y0}" width="${W}" height="${H}"/></clipPath></defs>
+    <rect x="${X0}" y="${Y0}" width="${W}" height="${H}" fill="#05080a" stroke="#3a4048"/>`;
+  for (let i = 1; i < 10; i++) s += `<line x1="${X0 + i * DX}" y1="${Y0}" x2="${X0 + i * DX}" y2="${Y0 + H}" stroke="#2a3a40" stroke-width="${i === 5 ? 0.9 : 0.5}" stroke-dasharray="${i === 5 ? '' : '1 2'}"/>`;
+  for (let i = 1; i < 8; i++) s += `<line x1="${X0}" y1="${Y0 + i * DY}" x2="${X0 + W}" y2="${Y0 + i * DY}" stroke="#2a3a40" stroke-width="${i === 4 ? 0.9 : 0.5}" stroke-dasharray="${i === 4 ? '' : '1 2'}"/>`;
+  const tr = scopeTraces(), trig = triggerPhase(tr), f = state.freq, w = 2 * Math.PI * f;
+  const cols = [SC_COL[0], SC_COL[1], SC_MATH];
+  tr.forEach((t, q) => {
+    if (!t || (q < 2 && !scope.show[q])) return;
+    const vd = q === 2 ? scope.vdiv[0] : scope.vdiv[q], pos = q === 2 ? 0 : scope.pos[q], pk = state.mode === 'AC' ? Math.SQRT2 * cabs(t.ph) : 0, th = cdeg(t.ph) * Math.PI / 180;
+    let d = '';
+    for (let k = 0; k <= 300; k++) {
+      const tt = (k / 300 - 0.5) * 10 * scope.tdiv;
+      const v = t.dc + pk * Math.cos(w * tt + th + trig.phi);
+      const y = Math.max(Y0 - 40, Math.min(Y0 + H + 40, midY - (v / vd + pos) * DY));
+      d += (k ? 'L' : 'M') + (X0 + k).toFixed(1) + ' ' + y.toFixed(1);
+    }
+    s += `<path d="${d}" fill="none" stroke="${cols[q]}" stroke-width="1.4" clip-path="url(#scclip)"/>`;
+    if (q < 2) s += `<text x="3" y="${Math.max(Y0 + 4, Math.min(Y0 + H, midY - pos * DY + 3))}" font-size="8" fill="${cols[q]}">${q + 1}</text>`;
+  });
+  // trigger level marker on the right edge
+  const tt = tr[scope.trig];
+  if (tt) { const vd = scope.vdiv[scope.trig], y = midY - (scope.level / vd + scope.pos[scope.trig]) * DY; if (y > Y0 && y < Y0 + H) s += `<path d="M${X0 + W} ${y} l6 -4 v8 z" fill="#ff9d2e"/>`; }
+  s += `<path d="M${X0 + W / 2} ${Y0} l-4 -6 h8 z" fill="#ff9d2e"/>`;
+  s += `<text x="${X0}" y="14" font-size="9" fill="${trig.locked ? '#8be28b' : '#ff9d2e'}">${trig.locked ? "T'D" : 'AUTO'}</text>
+    <text x="52" y="14" font-size="9" fill="#d8dde3">H ${tdivText(scope.tdiv)}/div</text>
+    <text x="${X0 + W}" y="14" font-size="9" fill="#d8dde3" text-anchor="end">T ${'CH' + (scope.trig + 1)} ↑ ${vdivText(scope.level)}</text>`;
+  // channel scale chips and measurements
+  const st = [0, 1].map(q => scopeStats(scopeRd && scopeRd.ch[q], f, scope.cpl[q]));
+  let y = Y0 + H + 13;
+  [0, 1].forEach(q => {
+    const on = scope.show[q] && st[q];
+    s += `<text x="${X0}" y="${y}" font-size="8.5" fill="${SC_COL[q]}">CH${q + 1} ${vdivText(scope.vdiv[q])} ${scope.cpl[q]}${on ? `  Vpp ${fmtEng(st[q].vpp, 'V', 4)}  Vrms ${fmtEng(st[q].vrms, 'V', 4)}${st[q].freq ? '  f ' + fmtEng(st[q].freq, 'Hz', 4) : '  Vavg ' + fmtEng(st[q].vavg, 'V', 4)}` : scope[q ? 'ch2' : 'ch1'] ? '' : '  (probe not placed)'}</text>`;
+    y += 12;
+  });
+  const ph = scopePhase(scopeRd && scopeRd.ch[0], scopeRd && scopeRd.ch[1]);
+  const mst = tr[2] && scopeStats(tr[2], f);
+  s += `<text x="${X0}" y="${y}" font-size="8.5" fill="#d8dde3">${ph !== null ? `Phase CH2−CH1 ${fmtNum(ph, 1)}°  Δt ${fmtEng(ph / 360 / f, 's', 3)}` : ''}${mst ? `<tspan fill="${SC_MATH}">  MATH 1−2 Vpp ${fmtEng(mst.vpp, 'V', 4)}</tspan>` : ''}</text>`;
+  return s;
+}
+function renderScope() {
+  $('btn-scope').setAttribute('aria-pressed', scope.on);
+  $('scopepanel').hidden = !scope.on;
+  if (!scope.on) { scopeRd = null; return; }
+  scopeRd = scopeMeasure(state.parts, { mode: state.mode, freq: state.freq }, scope);
+  $('scope').innerHTML = scopeSVG();
+  const ch = (q, name) => `<div class="scrow"><b class="sc${q + 1}">${name}</b>
+      <button class="btn sm" data-sc="v-${q}" title="Volts per division down">−</button><span class="val">${vdivText(scope.vdiv[q])}/div</span><button class="btn sm" data-sc="v+${q}" title="Volts per division up">+</button>
+      <button class="btn sm" data-sc="p+${q}" title="Move trace up">▲</button><button class="btn sm" data-sc="p-${q}" title="Move trace down">▼</button>
+      <button class="btn sm" data-sc="c${q}" title="Input coupling">${scope.cpl[q]}</button><button class="btn sm" data-sc="s${q}" aria-pressed="${scope.show[q]}">${scope.show[q] ? 'On' : 'Off'}</button></div>`;
+  const notes = scopeRd.notes.slice();
+  if (state.mode === 'DC' && (scope.ch1 || scope.ch2)) notes.push('DC analysis: each trace is a flat line at the node\'s DC voltage. Switch to AC to see the sine wave.');
+  else if (state.mode === 'AC' && state.parts.some(p => p.type === 'OPAMP' || p.type === 'D' || p.type === 'LED')) notes.push('Waveforms are small-signal, so they never show clipping. Check the peaks against the supply rails yourself.');
+  $('scopectl').innerHTML = `
+    <div class="probebtns">
+      <button class="btn sm probe ch1" data-sc="probe-ch1" aria-pressed="${state.tool === 'scope-ch1'}"><i></i>CH1 tip: ${esc(holeTxt(scope.ch1))}</button>
+      <button class="btn sm probe ch2" data-sc="probe-ch2" aria-pressed="${state.tool === 'scope-ch2'}"><i></i>CH2 tip: ${esc(holeTxt(scope.ch2))}</button>
+      <button class="btn sm probe gclip" data-sc="probe-gnd" aria-pressed="${state.tool === 'scope-gnd'}"><i></i>Ground clip: ${esc(scope.gnd ? holeName(scope.gnd) : 'not clipped (scope ground = circuit ground through earth)')}</button>
+      ${scope.ch1 || scope.ch2 || scope.gnd ? '<button class="btn sm" data-sc="lift">Lift the probes</button>' : ''}
+    </div>
+    ${ch(0, 'CH1')}${ch(1, 'CH2')}
+    <div class="scrow"><b>Time</b><button class="btn sm" data-sc="t-">−</button><span class="val">${tdivText(scope.tdiv)}/div</span><button class="btn sm" data-sc="t+">+</button></div>
+    <div class="scrow"><b>Trigger</b><button class="btn sm" data-sc="trig">CH${scope.trig + 1}</button><button class="btn sm" data-sc="l-" title="Trigger level down">−</button><span class="val">${vdivText(scope.level)}</span><button class="btn sm" data-sc="l+" title="Trigger level up">+</button></div>
+    <div class="scrow"><button class="btn sm primary" data-sc="auto">Auto scale</button><button class="btn sm" data-sc="math" aria-pressed="${scope.math}">MATH CH1 − CH2</button></div>
+    <p class="note">The probe tips are 1 MΩ to the ground clip. Traces show the instantaneous voltage: peak = rms × 1.414, so the DMM's AC reading is Vpp / 2.83 for a sine.</p>
+    ${notes.map(n => `<p class="note mwarn">${esc(n)}</p>`).join('')}`;
+}
+function scopeAuto() {
+  const st = [0, 1].map(q => scopeStats(scopeRd && scopeRd.ch[q], state.freq, scope.cpl[q]));
+  const f = state.mode === 'AC' ? state.freq : 1000;
+  [0, 1].forEach(q => { if (st[q]) { scope.vdiv[q] = scopeAutoscale([st[q]], f).vdiv; scope.pos[q] = 0; } });
+  scope.tdiv = scopeAutoscale(st, f).tdiv; scope.level = 0;
+  scope.trig = st[0] || !st[1] ? 0 : 1;
+}
+const stepIn = (list, v, d) => { let k = list.findIndex(x => x >= v * 0.999); if (k < 0) k = list.length - 1; return list[Math.max(0, Math.min(list.length - 1, k + d))]; };
+$('btn-scope').addEventListener('click', () => { scope.on = !scope.on; if (!scope.on && state.tool.startsWith('scope-')) setTool('select'); renderScope(); renderProbes(); save(); });
+$('scopectl').addEventListener('click', e => {
+  const b = e.target.closest('[data-sc]'); if (!b) return;
+  const a = b.dataset.sc, q = +a.slice(-1);
+  if (a.startsWith('probe-')) { const t = 'scope-' + a.slice(6); setTool(state.tool === t ? 'select' : t); return; }
+  if (a === 'lift') { scope.ch1 = scope.ch2 = scope.gnd = null; if (state.tool.startsWith('scope-')) setTool('select'); }
+  else if (a.startsWith('v')) scope.vdiv[q] = stepIn(SCOPE.vdiv, scope.vdiv[q], a[1] === '+' ? 1 : -1);
+  else if (a.startsWith('p')) scope.pos[q] = Math.max(-4, Math.min(4, scope.pos[q] + (a[1] === '+' ? 0.5 : -0.5)));
+  else if (a.startsWith('c')) scope.cpl[q] = scope.cpl[q] === 'DC' ? 'AC' : 'DC';
+  else if (a.startsWith('s')) scope.show[q] = !scope.show[q];
+  else if (a === 't-' || a === 't+') scope.tdiv = stepIn(SCOPE.tdiv, scope.tdiv, a === 't+' ? 1 : -1);
+  else if (a === 'trig') scope.trig = 1 - scope.trig;
+  else if (a === 'l-' || a === 'l+') scope.level += (a === 'l+' ? 0.5 : -0.5) * scope.vdiv[scope.trig];
+  else if (a === 'auto') scopeAuto();
+  else if (a === 'math') scope.math = !scope.math;
+  renderScope(); save();
+});
+
 /* ===================== tabs ===================== */
 function setTab(t) {
   state.tab = t;
-  for (const v of ['board', 'calc']) { $('view-' + v).hidden = v !== t; $('tab-' + v).setAttribute('aria-selected', v === t); }
+  for (const v of ['board', 'hw', 'calc']) { $('view-' + v).hidden = v !== t; $('tab-' + v).setAttribute('aria-selected', v === t); }
   try { history.replaceState(null, '', '#' + t); } catch (e) {}
 }
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); });
@@ -1670,8 +2014,8 @@ document.querySelector('.tabs').addEventListener('click', e => { const b = e.tar
 /* ===================== boot ===================== */
 $('showv').checked = state.showV;
 $('freq').value = fmtEng(state.freq, '').replace(' ', '');
-drawBase(); renderPalette(); renderBoardView(); runCalcs();
-setTab(location.hash.slice(1) === 'calc' ? 'calc' : 'board');
+drawBase(); renderPalette(); renderBoardView(); runCalcs(); renderHomework();
+setTab(['calc', 'hw'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'board');
 </script>
 </body>
 </html>
