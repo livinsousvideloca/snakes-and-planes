@@ -1329,10 +1329,272 @@ function meterMeasure(parts, opts, m) {
   return out;
 }
 
+/* ----- AC circuits two ways: combine impedances (Method 1), then check with KVL / KCL (Method 2) -----
+   Elements are { name, kind: 'R'|'L'|'C', ohms } with ohms = R, XL or XC. Add and subtract in rectangular
+   form, multiply and divide in polar form, as in the course homework. */
+const cadd = (...zs) => zs.reduce((s, z) => [s[0] + z[0], s[1] + z[1]], [0, 0]);
+const polar = (m, deg) => [m * Math.cos(deg * Math.PI / 180), m * Math.sin(deg * Math.PI / 180)];
+const zOf = e => e.kind === 'R' ? [e.ohms, 0] : e.kind === 'L' ? [0, e.ohms] : [0, -e.ohms];
+// 4 significant figures for magnitudes, 2 decimals for angles; tiny parts round to 0
+const n4 = x => { const t = String(+(+x).toPrecision(4)); return t.startsWith('-') ? '−' + t.slice(1) : t; };
+const a2 = x => { const t = String(+(+x).toFixed(2)); return t === '-0' ? '0' : t.startsWith('-') ? '−' + t.slice(1) : t; };
+function clean(z) { const s = Math.max(cabs(z), 1e-30); return z.map(x => Math.abs(x) < s * 1e-9 ? 0 : x); }
+function fmtRect(z, unit = '') { const [a, b] = clean(z); return `${n4(a)} ${b < 0 ? '−' : '+'} j${n4(Math.abs(b))}${unit ? ' ' + unit : ''}`; }
+function fmtPolar(z, unit = '') { const c = clean(z), m = cabs(c); return `${n4(m)}∠${a2(m ? cdeg(c) : 0)}°${unit ? ' ' + unit : ''}`; }
+/* "30 + j40", "-32-j24", "3+4j", "50∠53.13", "50<53.13°", "2 @ -53.13", "12 /_ 53.13" → [re, im]; null if not a number */
+function parsePhasor(s) {
+  const t = String(s).replace(/[−–]/g, '-').replace(/\s+/g, '').replace(/[Ωº°]|ohms?|deg|[VA]$/gi, '');
+  if (!t) return null;
+  let m = /^([+-]?[\d.]+(?:e[+-]?\d+)?)(?:∠|<|@|\/_|angle)([+-]?[\d.]+(?:e[+-]?\d+)?)$/i.exec(t);
+  if (m) return isFinite(+m[1]) && isFinite(+m[2]) ? polar(+m[1], +m[2]) : null;
+  const num = '[\\d.]+(?:e[+-]?\\d+)?';
+  m = new RegExp(`^([+-]?${num})?(?:([+-])j(${num})?|([+-])(${num})?j)?$`, 'i').exec(t);
+  if (m && (m[1] || m[2] || m[4])) {
+    const re = m[1] ? +m[1] : 0;
+    const im = m[2] ? (m[2] === '-' ? -1 : 1) * (m[3] ? +m[3] : 1) : m[4] ? (m[4] === '-' ? -1 : 1) * (m[5] ? +m[5] : 1) : 0;
+    return isFinite(re) && isFinite(im) ? [re, im] : null;
+  }
+  m = new RegExp(`^([+-]?)j(${num})?$`, 'i').exec(t);
+  if (m) return [0, (m[1] === '-' ? -1 : 1) * (m[2] ? +m[2] : 1)];
+  return null;
+}
+/* does a typed answer match? 1% of the magnitude, or 0.01 for answers near zero */
+function phasorMatches(typed, want, tol = 0.01) {
+  const z = typeof typed === 'string' ? parsePhasor(typed) : typed;
+  if (!z) return false;
+  return Math.hypot(z[0] - want[0], z[1] - want[1]) <= Math.max(tol * cabs(want), 0.01);
+}
+/* "R30, XL 60, C=20" → elements; L/XL are inductive reactance, C/XC capacitive (in ohms) */
+function parseElements(text, prefix = '') {
+  const out = [], seen = {};
+  for (const tok of String(text).split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)) {
+    const m = /^(XL|XC|R|L|C)(?:\d+(?=[\s=:]))?\s*[=:]?\s*(.+)$/i.exec(tok);
+    const v = m && parseEng(m[2].replace(/\s*(Ω|ohms?)$/i, ''));
+    if (!m || !(v > 0)) return { error: `Could not read "${tok}". Write each part as R 30, XL 60 or XC 20 (ohms).` };
+    const kind = m[1].toUpperCase().replace('X', '');
+    seen[kind] = (seen[kind] || 0) + 1;
+    out.push({ name: kind + prefix + (seen[kind] > 1 ? seen[kind] : ''), kind, ohms: v });
+  }
+  return { elements: out };
+}
+
+/*
+ * spec: { vs: [mag, deg], series: [elements], parallel: [two elements] }
+ * Series only: series RLC. Parallel only: two branches across the source. Both: series parts, then the parallel group Zp.
+ * Returns { kind, ZT, I, steps: [{ n, method, ask, lines, answers: [{ label, z, unit, form }] }], parts: { name: { z, v, i } } }
+ */
+function acTwoWays(spec) {
+  const S = spec.series || [], Pl = spec.parallel || [];
+  const Vs = polar(spec.vs[0], spec.vs[1] || 0), vsT = fmtPolar(Vs, 'V');
+  if (!S.length && !Pl.length) return { error: 'Add at least one part.' };
+  if (Pl.length && Pl.length !== 2) return { error: 'The parallel group needs exactly two branches. Combine branches two at a time with product over sum.' };
+  const kind = !Pl.length ? 'series' : !S.length ? 'parallel' : 'seriesparallel';
+  const steps = [], parts = {};
+  const step = (method, ask, lines, answers) => steps.push({ n: steps.length + 1, method, ask, lines, answers });
+  const A = (label, z, unit, form) => ({ label, z: clean(z), unit, form });
+  const sub = e => e.name.replace(/^([RLC])/, 'Z$1');
+  const rectAll = (list, unit) => list.map(e => A(sub(e), zOf(e), unit, 'rect'));
+  const and = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+  const zLines = list => list.map(e => `${e.kind} = ${n4(e.ohms)} Ω → ${sub(e)} = ${fmtRect(zOf(e), 'Ω')}`);
+  if (kind === 'series') {
+    const Z = S.map(zOf), ZT = cadd(...Z), I = cdiv(Vs, ZT);
+    step(1, `Write ${and(S.map(sub))} in rectangular form.`, zLines(S), rectAll(S, 'Ω'));
+    step(1, 'Add them to get ZT in rectangular form.', [`ZT = ${S.map(e => '(' + fmtRect(zOf(e)) + ')').join(' + ')} = ${fmtRect(ZT, 'Ω')}`], [A('ZT', ZT, 'Ω', 'rect')]);
+    step(1, 'Convert ZT to polar form.', [`|ZT| = √(${n4(ZT[0])}² + ${n4(ZT[1])}²) = ${n4(cabs(ZT))} Ω`, `θ = tan⁻¹(${n4(ZT[1])} / ${n4(ZT[0])}) = ${a2(cdeg(ZT))}°`, `ZT = ${fmtPolar(ZT, 'Ω')}`], [A('ZT', ZT, 'Ω', 'polar')]);
+    step(1, 'Find the current: I = Vs / ZT.', [`I = ${vsT} / ${fmtPolar(ZT, 'Ω')} = ${fmtPolar(I, 'A')}`, 'Divide the magnitudes, subtract the angles.'], [A('I', I, 'A', 'polar')]);
+    const Vk = S.map(e => cmul(I, zOf(e)));
+    S.forEach((e, k) => { parts[e.name] = { z: zOf(e), v: Vk[k], i: I }; });
+    step(2, `The current is the same in every part. Find ${and(S.map(e => 'V' + e.name + ' = I × ' + sub(e)))} in polar form.`,
+      S.map((e, k) => `V${e.name} = ${fmtPolar(I, 'A')} × ${fmtPolar(zOf(e), 'Ω')} = ${fmtPolar(Vk[k], 'V')}`), S.map((e, k) => A('V' + e.name, Vk[k], 'V', 'polar')));
+    step(2, 'Convert each voltage to rectangular form.', S.map((e, k) => `V${e.name} = ${fmtRect(Vk[k], 'V')}`), S.map((e, k) => A('V' + e.name, Vk[k], 'V', 'rect')));
+    const sum = cadd(...Vk);
+    step(2, `Add them. Does the total equal Vs = ${vsT}?`, [`${S.map(e => 'V' + e.name).join(' + ')} = ${fmtRect(sum, 'V')} = ${fmtPolar(sum, 'V')}`, phasorMatches(sum, Vs, 1e-6) ? '✔ KVL holds' : '✘ KVL does not hold: recheck the steps'], [A('Sum', sum, 'V', 'rect')]);
+    return { kind, ZT, I, Vs, steps, parts };
+  }
+  const [b1, b2] = Pl, z1 = zOf(b1), z2 = zOf(b2), prod = cmul(z1, z2), sum = cadd(z1, z2), Zp = cdiv(prod, sum);
+  if (kind === 'parallel') {
+    const ZT = Zp, IT = cdiv(Vs, ZT);
+    step(1, `Write ${sub(b1)} and ${sub(b2)} in rectangular and polar form.`, Pl.map(e => `${sub(e)} = ${fmtRect(zOf(e))} = ${fmtPolar(zOf(e), 'Ω')}`), Pl.map(e => A(sub(e), zOf(e), 'Ω', 'both')));
+    step(1, `Product (top): multiply ${sub(b1)} × ${sub(b2)} in polar form.`, [`${fmtPolar(z1)} × ${fmtPolar(z2)} = ${fmtPolar(prod)}`, 'Multiply the magnitudes, add the angles.'], [A(`${sub(b1)} × ${sub(b2)}`, prod, '', 'polar')]);
+    step(1, `Sum (bottom): add ${sub(b1)} + ${sub(b2)} in rectangular form, then convert to polar.`, [`(${fmtRect(z1)}) + (${fmtRect(z2)}) = ${fmtRect(sum)} = ${fmtPolar(sum)}`], [A(`${sub(b1)} + ${sub(b2)}`, sum, '', 'polar')]);
+    step(1, 'Divide product by sum to get ZT in polar form.', [`ZT = ${fmtPolar(prod)} / ${fmtPolar(sum)} = ${fmtPolar(ZT, 'Ω')}`], [A('ZT', ZT, 'Ω', 'polar')]);
+    step(1, 'Find the total current: IT = Vs / ZT.', [`IT = ${vsT} / ${fmtPolar(ZT, 'Ω')} = ${fmtPolar(IT, 'A')}`], [A('IT', IT, 'A', 'polar')]);
+    const I1 = cdiv(Vs, z1), I2 = cdiv(Vs, z2), Isum = cadd(I1, I2);
+    parts[b1.name] = { z: z1, v: Vs, i: I1 }; parts[b2.name] = { z: z2, v: Vs, i: I2 };
+    step(2, `Every branch has the full ${n4(spec.vs[0])} V. Find I${b1.name} = Vs / ${sub(b1)} and I${b2.name} = Vs / ${sub(b2)} in polar form.`,
+      [`I${b1.name} = ${vsT} / ${fmtPolar(z1, 'Ω')} = ${fmtPolar(I1, 'A')}`, `I${b2.name} = ${vsT} / ${fmtPolar(z2, 'Ω')} = ${fmtPolar(I2, 'A')}`], [A('I' + b1.name, I1, 'A', 'polar'), A('I' + b2.name, I2, 'A', 'polar')]);
+    step(2, 'Convert both to rectangular form and add them to get IT.', [`I${b1.name} = ${fmtRect(I1, 'A')}, I${b2.name} = ${fmtRect(I2, 'A')}`, `IT = ${fmtRect(Isum, 'A')}`], [A('IT', Isum, 'A', 'rect')]);
+    step(2, 'Convert IT to polar form. Does it match Method 1?', [`IT = ${fmtPolar(Isum, 'A')}`, phasorMatches(Isum, IT, 1e-6) ? '✔ KCL matches Method 1' : '✘ KCL does not match: recheck the steps'], [A('IT', Isum, 'A', 'polar')]);
+    return { kind, ZT, I: IT, Vs, steps, parts };
+  }
+  // series-parallel: the parallel group first, then the series parts
+  const ZT = cadd(...S.map(zOf), Zp), I = cdiv(Vs, ZT);
+  step(1, `Find Zp = (${sub(b1)} × ${sub(b2)}) / (${sub(b1)} + ${sub(b2)}). Give it in polar and rectangular form.`,
+    [`${sub(b1)} × ${sub(b2)} = ${fmtPolar(z1)} × ${fmtPolar(z2)} = ${fmtPolar(prod)}`, `${sub(b1)} + ${sub(b2)} = ${fmtRect(sum)} = ${fmtPolar(sum)}`, `Zp = ${fmtPolar(prod)} / ${fmtPolar(sum)} = ${fmtPolar(Zp, 'Ω')} = ${fmtRect(Zp, 'Ω')}`],
+    [A(`${sub(b1)} × ${sub(b2)}`, prod, '', 'polar'), A(`${sub(b1)} + ${sub(b2)}`, sum, '', 'polar'), A('Zp', Zp, 'Ω', 'both')]);
+  step(1, `Add ${and(S.map(e => e.name))} in series: ZT = ${S.map(sub).join(' + ')} + Zp. Give it in rectangular and polar form.`,
+    [`ZT = ${S.map(e => '(' + fmtRect(zOf(e)) + ')').join(' + ')} + (${fmtRect(Zp)}) = ${fmtRect(ZT, 'Ω')} = ${fmtPolar(ZT, 'Ω')}`], [A('ZT', ZT, 'Ω', 'both')]);
+  step(1, 'Find the source current: I = Vs / ZT.', [`I = ${vsT} / ${fmtPolar(ZT, 'Ω')} = ${fmtPolar(I, 'A')}`], [A('I', I, 'A', 'polar')]);
+  const Vk = S.map(e => cmul(I, zOf(e)));
+  S.forEach((e, k) => { parts[e.name] = { z: zOf(e), v: Vk[k], i: I }; });
+  step(1, `Find the voltage across ${and(S.map(e => e.name))}: ${and(S.map(e => 'V' + e.name + ' = I × ' + sub(e)))}.`,
+    S.map((e, k) => `V${e.name} = ${fmtPolar(I, 'A')} × ${fmtPolar(zOf(e), 'Ω')} = ${fmtPolar(Vk[k], 'V')}`), S.map((e, k) => A('V' + e.name, Vk[k], 'V', 'polar')));
+  const Vp = cmul(I, Zp);
+  step(1, 'Find the voltage across the parallel group: Vp = I × Zp.', [`Vp = ${fmtPolar(I, 'A')} × ${fmtPolar(Zp, 'Ω')} = ${fmtPolar(Vp, 'V')}`], [A('Vp', Vp, 'V', 'polar')]);
+  const I1 = cdiv(Vp, z1), I2 = cdiv(Vp, z2);
+  parts[b1.name] = { z: z1, v: Vp, i: I1 }; parts[b2.name] = { z: z2, v: Vp, i: I2 };
+  step(1, `Vp is across both ${b1.name} and ${b2.name}. Find I${b1.name} = Vp / ${sub(b1)} and I${b2.name} = Vp / ${sub(b2)}.`,
+    [`I${b1.name} = ${fmtPolar(Vp, 'V')} / ${fmtPolar(z1, 'Ω')} = ${fmtPolar(I1, 'A')}`, `I${b2.name} = ${fmtPolar(Vp, 'V')} / ${fmtPolar(z2, 'Ω')} = ${fmtPolar(I2, 'A')}`], [A('I' + b1.name, I1, 'A', 'polar'), A('I' + b2.name, I2, 'A', 'polar')]);
+  const kvl = cadd(...Vk, Vp);
+  step(2, `KVL around the loop: convert ${S.map(e => 'V' + e.name).join(', ')} and Vp to rectangular form and add them. Do you get Vs?`,
+    [...S.map((e, k) => `V${e.name} = ${fmtRect(Vk[k], 'V')}`), `Vp = ${fmtRect(Vp, 'V')}`, `Sum = ${fmtRect(kvl, 'V')} ${phasorMatches(kvl, Vs, 1e-6) ? '✔' : '✘'}`],
+    [...S.map((e, k) => A('V' + e.name, Vk[k], 'V', 'rect')), A('Vp', Vp, 'V', 'rect'), A('Sum', kvl, 'V', 'rect')]);
+  const kcl = cadd(I1, I2);
+  step(2, `KCL at the top node: convert I${b1.name} and I${b2.name} to rectangular form and add them. Do you get I?`,
+    [`I${b1.name} = ${fmtRect(I1, 'A')}, I${b2.name} = ${fmtRect(I2, 'A')}`, `Sum = ${fmtRect(kcl, 'A')} = ${fmtPolar(kcl, 'A')} ${phasorMatches(kcl, I, 1e-6) ? '✔' : '✘'}`],
+    [A('I' + b1.name, I1, 'A', 'rect'), A('I' + b2.name, I2, 'A', 'rect'), A('Sum', kcl, 'A', 'rect')]);
+  return { kind, ZT, I, Vs, Zp, Vp, steps, parts };
+}
+
+/* The course homework "Solving AC Circuits Two Ways": three circuits, each solved by combining impedances and checked with KVL / KCL */
+const HOMEWORK = [{
+  id: 'ac2ways', title: 'Solving AC circuits two ways', topic: 'Combining impedances, and KVL / KCL with complex numbers',
+  intro: 'Solve each circuit two ways. Method 1 combines the impedances into one. Method 2 uses KVL or KCL. Both methods must give the same answer, so the second method checks the first.',
+  method1: ['Write every part as an impedance in rectangular form: R → R + j0, L → 0 + jXL, C → 0 − jXC.', 'Combine them. Series: add in rectangular form. Parallel: ZT = (Z1 × Z2) / (Z1 + Z2).', 'Convert ZT to polar form: |Z| = √(a² + b²), θ = tan⁻¹(b / a).', 'Find the total current: IT = Vs / ZT (divide in polar: divide magnitudes, subtract angles).', 'Work back to each part: V = I × Z (multiply magnitudes, add angles) or I = V / Z.'],
+  method2: ['Series parts: the same current flows through every part. Find each part\'s voltage, convert each to rectangular form, and add them. KVL says they must add up to Vs: Vs = V1 + V2 + V3.', 'Parallel parts: every branch has the same voltage. Find each branch current (I = V / Z), convert each to rectangular form, and add them. KCL says they must add up to the total: IT = I1 + I2.', 'Add and subtract in rectangular form. Multiply and divide in polar form.'],
+  problems: [
+    { key: 'series', title: 'Circuit 1: Series RLC', sample: 'hwseries',
+      spec: { vs: [100, 0], series: [{ name: 'R', kind: 'R', ohms: 30 }, { name: 'L', kind: 'L', ohms: 60 }, { name: 'C', kind: 'C', ohms: 20 }] },
+      think: { q: 'VL is 120 V, more than the 100 V source. How can a part have more voltage than the source?',
+        a: 'VL and VC point in opposite directions (VL at +36.87°, VC at −143.13°: 180° apart), so they partly cancel. Only their difference, 120 − 40 = 80 V, adds to VR at right angles: √(60² + 80²) = 100 V. A single part can exceed the source as long as the phasor sum still equals Vs. At resonance the effect is even bigger.' } },
+    { key: 'parallel', title: 'Circuit 2: Parallel RC', sample: 'hwparallel',
+      spec: { vs: [24, 0], parallel: [{ name: 'R', kind: 'R', ohms: 8 }, { name: 'C', kind: 'C', ohms: 6 }] },
+      think: { q: 'A DMM would read 3 A and 4 A in the branches. Why is the total 5 A and not 7 A?',
+        a: 'The DMM shows only magnitudes. IR is at 0° and IC is at +90°, so they add at right angles like the sides of a triangle: √(3² + 4²) = 5 A. They would only add to 7 A if they were in phase. KCL holds for the phasors, not for the meter readings.' } },
+    { key: 'seriesparallel', title: 'Circuit 3: Series-parallel', sample: 'hwseriesparallel',
+      spec: { vs: [32, 0], series: [{ name: 'R1', kind: 'R', ohms: 5.6 }], parallel: [{ name: 'R2', kind: 'R', ohms: 20 }, { name: 'L', kind: 'L', ohms: 15 }] },
+      think: { q: 'For a series-parallel circuit, why do you have to combine the parallel group first?',
+        a: 'R1 is in series with the whole group, not with R2 or L alone: the current through R1 splits between them. Only after the group is one impedance, Zp, is there a single chain of series parts that you can add. Working from the far end back toward the source always reduces the circuit one step at a time.' } }
+  ]
+}];
+
+/* the homework circuits on the breadboard at 1 kHz: L = XL / (2πf), C = 1 / (2πf·XC).
+   Textbook voltages and currents are far above real ¼ W parts, so these get ratings to match. */
+const HW_F = 1000;
+const hwL = x => x / (2 * Math.PI * HW_F), hwC = x => 1 / (2 * Math.PI * HW_F * x);
+const HW_RATED = { pRating: 500, iRating: 10, vRating: 250 };
+Object.assign(SAMPLE_CIRCUITS, {
+  hwseries: {
+    label: 'Homework: series RLC (two ways)', topic: 'AC homework', mode: 'AC', freq: HW_F, homework: ['ac2ways', 'series'],
+    about: 'Circuit 1 from the homework: Vs = 100∠0° V across R = 30 Ω, XL = 60 Ω and XC = 20 Ω in series. The board runs at 1 kHz, so L = 60 / (2π·1k) = 9.55 mH and C = 1 / (2π·1k·20) = 7.96 µF. The yellow jumper from the source to R is where a DMM goes to read the current.',
+    expect: 'ZT = 30 + j40 = 50∠53.13° Ω, so I = 2∠−53.13° A. VR = 60 V, VL = 120 V and VC = 40 V on the DMM, and the phasors add back to 100∠0° V. The scope shows CH1 on the source (141 V peak) and CH2 across C, which lags the source by 143°.',
+    try: 'Change the frequency to 500 Hz: XL halves and XC doubles, so the answers no longer match the homework. Then find the resonant frequency where XL = XC and watch VR rise to the full 100 V. To read the current, delete the yellow jumper, set the meter to A~ with the red lead in A, and put the probes on columns 3 and 5.',
+    scope: { ch1: 'j3', ch2: 'j15', gnd: null },
+    checks: [['I', 'R', 'i'], ['VR', 'R', 'v'], ['VL', 'L', 'v'], ['VC', 'C', 'v']],
+    steps: [['GND', 'BN2'], ['VAC-IDEAL', 'h3', 'BN3', { value: 100 }], ['wire', 'g3', 'g5', { color: W.yellow }],
+      ['R-CF', 'h5', 'h10', Object.assign({ value: 30, name: 'R' }, HW_RATED)], ['L-IDEAL', 'g10', 'g15', Object.assign({ value: hwL(60), name: 'L' }, HW_RATED)], ['C-X7R', 'h15', 'BN15', Object.assign({ value: hwC(20), name: 'C' }, HW_RATED)]]
+  },
+  hwparallel: {
+    label: 'Homework: parallel RC (two ways)', topic: 'AC homework', mode: 'AC', freq: HW_F, homework: ['ac2ways', 'parallel'],
+    about: 'Circuit 2 from the homework: Vs = 24∠0° V across R = 8 Ω in parallel with XC = 6 Ω. At 1 kHz, C = 1 / (2π·1k·6) = 26.5 µF. Each branch is fed through its own jumper (yellow to R, green to C), so you can swap either jumper for the DMM and read that branch current.',
+    expect: 'ZT = 4.8∠−53.13° Ω and IT = 5∠53.13° A. The branches carry IR = 3∠0° A and IC = 4∠90° A: the DMM reads 3 A and 4 A, but they add as phasors to 5 A, not 7 A.',
+    try: 'Delete the yellow jumper, set the meter to A~ with the red lead in A, and probe columns 3 and 7 to read IR = 3 A. Put it back and do the same with the green jumper (columns 3 and 12) for IC. Then double C: IC doubles and the total current swings closer to +90°.',
+    scope: { ch1: 'j3', ch2: null, gnd: null },
+    checks: [['IT', 'Vs', 'i', -1], ['IR', 'R', 'i'], ['IC', 'C', 'i'], ['V across both', 'R', 'v']],
+    steps: [['GND', 'BN2'], ['VAC-IDEAL', 'h3', 'BN3', { value: 24, name: 'Vs' }], ['wire', 'g3', 'g7', { color: W.yellow }], ['R-CF', 'h7', 'BN7', Object.assign({ value: 8, name: 'R' }, HW_RATED)],
+      ['wire', 'i3', 'i12', { color: W.green }], ['C-X7R', 'h12', 'BN12', Object.assign({ value: hwC(6), name: 'C' }, HW_RATED)]]
+  },
+  hwseriesparallel: {
+    label: 'Homework: series-parallel (two ways)', topic: 'AC homework', mode: 'AC', freq: HW_F, homework: ['ac2ways', 'seriesparallel'],
+    about: 'Circuit 3 from the homework: Vs = 32∠0° V, R1 = 5.6 Ω in series with R2 = 20 Ω in parallel with XL = 15 Ω. At 1 kHz, L = 15 / (2π·1k) = 2.39 mH. Column 8 is the top node of the parallel group; R2 and L each hang from it through a jumper.',
+    expect: 'Zp = 12∠53.13° Ω, ZT = 16∠36.87° Ω and I = 2∠−36.87° A. VR1 = 11.2 V and Vp = 24 V (11.2 + 24 is not 32: they are 53° apart). IR2 = 1.2 A and IL = 1.6 A. The scope has CH1 on the source and CH2 on column 8: Vp leads the source by 16.26°.',
+    try: 'Measure VR1 with the DMM across columns 3 and 8. To see it on the scope you would clip the ground lead to column 8, which shorts L and R2 to ground through the scope. Try it with the ground clip, then use MATH (CH1 − CH2) instead.',
+    scope: { ch1: 'j3', ch2: 'j8', gnd: null },
+    checks: [['I', 'R1', 'i'], ['VR1', 'R1', 'v'], ['Vp', 'R2', 'v'], ['IR2', 'R2', 'i'], ['IL', 'L', 'i']],
+    steps: [['GND', 'BN2'], ['VAC-IDEAL', 'h3', 'BN3', { value: 32 }], ['R-CF', 'g3', 'g8', Object.assign({ value: 5.6, name: 'R1' }, HW_RATED)],
+      ['wire', 'h8', 'h12', { color: W.yellow }], ['R-CF', 'i12', 'BN12', Object.assign({ value: 20, name: 'R2' }, HW_RATED)],
+      ['wire', 'i8', 'i17', { color: W.green }], ['L-IDEAL', 'h17', 'BN17', Object.assign({ value: hwL(15), name: 'L' }, HW_RATED)]]
+  }
+});
+/* expected-vs-board for a homework sample: the homework answer next to what the solved board reads */
+function homeworkChecks(key, res) {
+  const s = SAMPLE_CIRCUITS[key];
+  if (!s || !s.homework || !res || !res.ok || res.mode !== 'AC') return null;
+  const set = HOMEWORK.find(h => h.id === s.homework[0]), prob = set && set.problems.find(p => p.key === s.homework[1]);
+  if (!prob) return null;
+  const sol = acTwoWays(prob.spec);
+  return s.checks.map(([label, name, q, sign = 1]) => {
+    const p = res.topo.els.find(x => x.name === name), r = p && res.parts[p.id];
+    const want = name === 'Vs' ? (q === 'i' ? sol.I : sol.Vs) : sol.parts[name] && sol.parts[name][q];
+    const got = r && r[q] ? [sign * r[q][0], sign * r[q][1]] : null;
+    return { label, want, got, ok: !!(got && want && phasorMatches(got, want)) };
+  });
+}
+
+/* ----- virtual oscilloscope: two channels, 1 MΩ inputs, ground clip tied to earth like a bench scope -----
+   The circuit's ground is earth too (through the generator or supply), so clipping the ground lead onto any
+   other node shorts that node to ground. Traces come from the DC operating point plus the AC phasor:
+   v(t) = Vdc + √2·|V|·cos(ωt + θ). */
+const SCOPE = { rin: 1e6, vdiv: [0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100], tdiv: [] };
+for (const e of [-7, -6, -5, -4, -3, -2, -1, 0]) for (const m of [1, 2, 5]) SCOPE.tdiv.push(+(m * Math.pow(10, e)).toPrecision(1));
+/* sc: { ch1, ch2, gnd } holes (null = not clipped on). Returns { ch: [{ dc, ph } | null, ...], freq, ac, notes, shorted } */
+function scopeMeasure(parts, opts, sc) {
+  const mode = opts.mode || 'DC', freq = opts.freq || 1000;
+  const out = { ch: [null, null], freq, ac: mode === 'AC', notes: [], shorted: null };
+  if (!sc || (!sc.ch1 && !sc.ch2)) return out;
+  if (!parts.some(p => p.type === 'VDC' || p.type === 'VAC')) return out;
+  const topo = topology(parts);
+  const extra = [];
+  let ref = null; // hole at circuit ground, for the earth connection
+  const g = parts.find(p => p.type === 'GND');
+  if (g) ref = g.a; else { const s = topo.els.find(p => p.type === 'VDC') || topo.els.find(p => p.type === 'VAC'); if (s) ref = s.b; }
+  if (sc.gnd && ref && topo.find(baseNetOfHole(sc.gnd)) !== topo.find(baseNetOfHole(ref))) {
+    out.shorted = netName(topo.find(baseNetOfHole(sc.gnd)), topo);
+    out.notes.push(`The ground clip is tied to earth, and so is the circuit's ground. Clipping it onto ${out.shorted} shorts that node to ground through the scope and changes the circuit. To look across a part that isn't grounded, put CH1 and CH2 on its two ends and use MATH (CH1 − CH2).`);
+    extra.push({ id: '__sg', type: 'wire', a: sc.gnd, b: ref, name: 'scope ground' });
+  }
+  const clip = sc.gnd || ref;
+  ['ch1', 'ch2'].forEach((k, q) => { if (sc[k]) extra.push({ id: '__si' + q, type: 'R', model: 'R-CF', a: sc[k], b: clip, value: SCOPE.rin, name: 'scope ' + k.toUpperCase() }); });
+  // an inductor shorted out by the ground clip would stop the DC solve, so give ideal ones a 1 µΩ winding
+  const base = parts.map(p => p.type === 'L' && !(p.dcr > 0) ? Object.assign({}, p, { dcr: 1e-6 }) : p);
+  const r = analyze(base.concat(extra), { mode, freq });
+  if (!r.ok) { out.notes.push(...r.errors); return out; }
+  ['ch1', 'ch2'].forEach((k, q) => {
+    if (!sc[k]) return;
+    const dc = nodeVolt(r, sc[k], false) - nodeVolt(r, clip, false);
+    let ph = [0, 0];
+    if (mode === 'AC') { const a = nodeVolt(r, sc[k], true), b = nodeVolt(r, clip, true); ph = [a[0] - b[0], a[1] - b[1]]; }
+    out.ch[q] = { dc, ph };
+  });
+  return out;
+}
+/* what the scope's measure menu shows for a trace: AC coupling drops the DC part */
+function scopeStats(t, freq, coupling = 'DC') {
+  if (!t) return null;
+  const dc = coupling === 'AC' ? 0 : t.dc, pk = Math.SQRT2 * cabs(t.ph), ac = cabs(t.ph) > 1e-9;
+  return { vpp: 2 * pk, vmax: dc + pk, vmin: dc - pk, vavg: dc, vrms: Math.hypot(dc, cabs(t.ph)), freq: ac ? freq : 0, period: ac ? 1 / freq : 0, deg: cdeg(t.ph) };
+}
+/* phase of CH2 relative to CH1, in (−180°, 180°]; positive means CH2 leads */
+function scopePhase(a, b) {
+  if (!a || !b || cabs(a.ph) < 1e-9 || cabs(b.ph) < 1e-9) return null;
+  let d = cdeg(b.ph) - cdeg(a.ph);
+  while (d <= -180) d += 360;
+  while (d > 180) d -= 360;
+  return d;
+}
+/* smallest 1-2-5 step that fits: V/div for about 6 divisions peak to peak, s/div for about 2 cycles across 10 divisions */
+function scopeAutoscale(st, freq) {
+  const span = Math.max(0, ...st.filter(Boolean).map(s => Math.max(Math.abs(s.vmax), Math.abs(s.vmin), s.vpp / 2)));
+  const vdiv = SCOPE.vdiv.find(v => v * 3.5 >= span) || SCOPE.vdiv[SCOPE.vdiv.length - 1];
+  const tdiv = SCOPE.tdiv.find(t => t * 10 >= 2 / freq) || SCOPE.tdiv[SCOPE.tdiv.length - 1];
+  return { vdiv, tdiv };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     E_BASE, SERIES_TOL, POWER_RATINGS, LED_TYPES, CATALOG, CATALOG_BY_ID, catalogOf, snap, isInSeries, parseEng, fmtEng, rkm, colorBands, smdCode,
     capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, spiceNetlist, SAMPLE_CIRCUITS, sampleParts,
-    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice, METER, METER_RANGES, meterDisplay, meterMeasure
+    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice, METER, METER_RANGES, meterDisplay, meterMeasure,
+    cadd, polar, fmtRect, fmtPolar, parsePhasor, phasorMatches, parseElements, acTwoWays, HOMEWORK, homeworkChecks, SCOPE, scopeMeasure, scopeStats, scopePhase, scopeAutoscale
   };
 }
