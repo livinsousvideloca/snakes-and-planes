@@ -420,13 +420,13 @@ function newtonDC(topo, ctx, lam, gext, x0, maxIt) {
     if (!y) continue;
     const i = node(p.a), j = node(p.b);
     stampG(i, j, y[0]);
-    if (p.type === 'VDC' && p.rint > 0 && !(p.iLimit > 0)) { const is = lam * p.value / p.rint; if (i >= 0) b0[i] += is; if (j >= 0) b0[j] -= is; }
+    if ((p.type === 'VDC' || (p.type === 'VAC' && p.dc)) && p.rint > 0 && !(p.iLimit > 0)) { const is = lam * (p.type === 'VDC' ? p.value : p.dc) / p.rint; if (i >= 0) b0[i] += is; if (j >= 0) b0[j] -= is; }
   }
   branches.forEach((p, k) => {
     const m = n + k, i = node(p.a), j = node(p.b);
     if (i >= 0) { A0[i * N + m] += 1; A0[m * N + i] += 1; }
     if (j >= 0) { A0[j * N + m] -= 1; A0[m * N + j] -= 1; }
-    b0[m] = p.type === 'VDC' ? lam * p.value : 0;
+    b0[m] = p.type === 'VDC' ? lam * p.value : p.type === 'VAC' ? lam * (p.dc || 0) : 0;
   });
   let x = x0 ? Float64Array.from(x0) : new Float64Array(N);
   const volt = (xx, k) => k < 0 ? 0 : xx[k];
@@ -611,7 +611,7 @@ function partResults(topo, ctx, x, mode, extra) {
       const y = mode === 'DC' ? linearY(p, 0, 'DC') : extra.admit[p.id];
       const vab = [pv[0][0] - pv[1][0], pv[0][1] - pv[1][1]];
       let i = y ? cmul(y, vab) : [0, 0];
-      if ((p.type === 'VDC' && mode === 'DC') && p.rint > 0) i = [(vab[0] - p.value) / p.rint, 0];
+      if (mode === 'DC' && p.rint > 0 && (p.type === 'VDC' || p.type === 'VAC')) i = [(vab[0] - (p.type === 'VDC' ? p.value : p.dc || 0)) / p.rint, 0];
       if (p.type === 'VAC' && mode === 'AC' && p.rint > 0) { const ph = (p.phase || 0) * Math.PI / 180; i = [(vab[0] - p.value * Math.cos(ph)) / p.rint, (vab[1] - p.value * Math.sin(ph)) / p.rint]; }
       pi = [i, [-i[0], -i[1]]];
     }
@@ -701,7 +701,7 @@ function spiceNetlist(parts, mode, freq) {
     return netName(r, topo).replace('Top + rail', 'RAIL_TP').replace('Top − rail', 'RAIL_TN').replace('Bottom + rail', 'RAIL_BP').replace('Bottom − rail', 'RAIL_BN')
       .replace(/^Col (\d+) a–e$/, 'C$1A').replace(/^Col (\d+) f–j$/, 'C$1F');
   };
-  const sp = v => fmtEng(v, '', 4).replace(' ', '').replace('µ', 'u').replace('M', 'Meg');
+  const sp = v => fmtEng(v, '', 4).replace(' ', '').replace('µ', 'u').replace('M', 'Meg').replace('−', '-');
   const L = ['* Breadboard Bench export'];
   const models = new Map(), subckts = new Map();
   const mdl = (k, s) => models.set(k, s);
@@ -724,7 +724,7 @@ function spiceNetlist(parts, mode, freq) {
         break;
       }
       case 'VDC': L.push(`${p.name} ${a} ${b} DC ${sp(p.value)}${p.rint > 0 ? ' Rser=' + sp(p.rint) : ''}${p.iLimit > 0 ? ' ; current limit ' + sp(p.iLimit) + 'A' : ''}`); break;
-      case 'VAC': L.push(`${p.name} ${a} ${b} SINE(0 ${sp(p.value * Math.SQRT2)} ${sp(freq)}) AC ${sp(p.value)} ${p.phase || 0}${p.rint > 0 ? ' Rser=' + sp(p.rint) : ''}`); break;
+      case 'VAC': L.push(`${p.name} ${a} ${b} SINE(${p.dc ? sp(p.dc) : 0} ${sp(p.value * Math.SQRT2)} ${sp(freq)}) AC ${sp(p.value)} ${p.phase || 0}${p.rint > 0 ? ' Rser=' + sp(p.rint) : ''}`); break;
     }
   }
   for (const s of models.values()) L.push(s);
@@ -872,9 +872,9 @@ function sampleParts(key) {
 
 /* SPICE number: 4.7k, 1Meg, 10u, 100n, 2m (milli), 4k7; trailing units are ignored */
 function spiceValue(s) {
-  const m = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(meg|mil|[tgkmunpfµ])?(\d*)/i.exec(String(s));
+  const m = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(meg|mil|[tgkmunpfµμ\ufffd])?(\d*)/i.exec(String(s));
   if (!m) return NaN;
-  const mult = { t: 1e12, g: 1e9, meg: 1e6, k: 1e3, m: 1e-3, mil: 25.4e-6, u: 1e-6, 'µ': 1e-6, n: 1e-9, p: 1e-12, f: 1e-15 }[(m[2] || '').toLowerCase()] || 1;
+  const mult = { t: 1e12, g: 1e9, meg: 1e6, k: 1e3, m: 1e-3, mil: 25.4e-6, u: 1e-6, 'µ': 1e-6, 'μ': 1e-6, '\ufffd': 1e-6, n: 1e-9, p: 1e-12, f: 1e-15 }[(m[2] || '').toLowerCase()] || 1;
   const num = m[3] && m[2] && !/[.e]/i.test(m[1]) ? parseFloat(m[1] + '.' + m[3]) : parseFloat(m[1]);
   return num * mult;
 }
@@ -898,9 +898,14 @@ function parseElementLine(line) {
     const el = { kind: 'V', name, nodes: [node(t[1]), node(t[2])], rser: params.rser ? spiceValue(params.rser) : 0 };
     const sine = /sin(?:e)?\s*\(([^)]*)\)/i.exec(rest), ac = /\bac\s+([^\s]+)(?:\s+([^\s=]+))?/i.exec(rest);
     if (sine) {
+      // SINE(offset amplitude freq delay damping phase): amplitude is the peak, so rms = peak / √2
       const a = sine[1].trim().split(/[\s,]+/).map(spiceValue);
-      Object.assign(el, { ac: true, value: (a[1] || 0) / Math.SQRT2, freq: a[2] > 0 ? a[2] : null, phase: 0 });
-    } else if (ac) Object.assign(el, { ac: true, value: spiceValue(ac[1]), phase: ac[2] ? spiceValue(ac[2]) || 0 : 0, freq: null });
+      Object.assign(el, { ac: true, value: (a[1] || 0) / Math.SQRT2, freq: a[2] > 0 ? a[2] : null, phase: a[5] || 0, dc: a[0] || 0 });
+      if (ac && isFinite(spiceValue(ac[1]))) Object.assign(el, { value: spiceValue(ac[1]), phase: ac[2] ? spiceValue(ac[2]) || 0 : 0 });
+    } else if (ac) {
+      const d = /^(?:dc\s+)?([^\s]+)\s+ac\b/i.exec(rest);
+      Object.assign(el, { ac: true, value: spiceValue(ac[1]), phase: ac[2] ? spiceValue(ac[2]) || 0 : 0, freq: null, dc: d && isFinite(spiceValue(d[1])) ? spiceValue(d[1]) : 0 });
+    }
     else if (/pulse|pwl|exp|sffm/i.test(rest)) return { skip: `${name}: ${rest.split('(')[0].trim()} sources are not supported; use a DC or SINE source` };
     else {
       const d = /^(?:dc\s+)?([^\s]+)/i.exec(rest);
@@ -923,6 +928,27 @@ function parseElementLine(line) {
   return { skip: `${name}: ${what || 'this kind of element'} ${what ? 'are' : 'is'} not part of this course's parts, so it was left out` };
 }
 
+/* .param R=1k C=100n → { r: '1k', c: '100n' }; {R} in a value is then replaced by 1k */
+function spiceParams(lines) {
+  const params = {};
+  for (const l of lines) {
+    const m = /^\s*!?\s*\.param\s+(.*)$/i.exec(l);
+    if (m) for (const q of m[1].matchAll(/(\w+)\s*=\s*([^\s;]+)/g)) params[q[1].toLowerCase()] = q[2].replace(/^\{|\}$/g, '');
+  }
+  return params;
+}
+function applyParams(line, params) {
+  return line.replace(/\{\s*(\w+)\s*\}/g, (m, k) => params[k.toLowerCase()] !== undefined ? params[k.toLowerCase()] : m);
+}
+/* Bytes of a file saved by LTspice → text. LTspice XVII writes UTF-16, older versions Windows-1252
+   (where µ is a single byte that is not valid UTF-8), newer ones UTF-8. */
+function decodeSpiceFile(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (b.length > 1 && ((b[0] === 0xff && b[1] === 0xfe) || (b[1] === 0 && b[0] !== 0))) return new TextDecoder('utf-16le').decode(b);
+  if (b.length > 1 && ((b[0] === 0xfe && b[1] === 0xff) || (b[0] === 0 && b[1] !== 0))) return new TextDecoder('utf-16be').decode(b);
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(b); } catch (e) { return new TextDecoder('windows-1252').decode(b); }
+}
+
 /* SPICE netlist text → { elements, notes, analysis } */
 function parseNetlist(text) {
   const raw = String(text).replace(/\r/g, '').split('\n');
@@ -933,8 +959,9 @@ function parseNetlist(text) {
   }
   const elements = [], notes = [];
   let inSub = false, analysis = null;
+  const params = spiceParams(lines);
   lines.forEach((l, i) => {
-    const s = l.replace(/;.*$/, '').trim();
+    const s = applyParams(l.replace(/;.*$/, '').trim(), params);
     if (!s || s[0] === '*') return;
     if (/^\.subckt\b/i.test(s)) { inSub = true; return; }
     if (/^\.ends\b/i.test(s)) { inSub = false; return; }
@@ -953,11 +980,13 @@ const ASC_PINS = {
   res: ['R', [[16, 16], [16, 96]]], res2: ['R', [[16, 16], [16, 96]]],
   cap: ['C', [[16, 0], [16, 64]]], polcap: ['C', [[16, 0], [16, 64]]],
   ind: ['L', [[16, 16], [16, 96]]], ind2: ['L', [[16, 16], [16, 96]]],
-  voltage: ['V', [[0, 16], [0, 96]]],
+  voltage: ['V', [[0, 16], [0, 96]]], battery: ['V', [[0, 16], [0, 96]]], cell: ['V', [[0, 16], [0, 96]]], signal: ['V', [[0, 16], [0, 96]]],
+  europeanresistor: ['R', [[16, 16], [16, 96]]], europeancap: ['C', [[16, 0], [16, 64]]], europeanpolcap: ['C', [[16, 0], [16, 64]]],
   diode: ['D', [[16, 0], [16, 64]]], led: ['D', [[16, 0], [16, 64]]], schottky: ['D', [[16, 0], [16, 64]]], zener: ['D', [[16, 0], [16, 64]]],
   opamp: ['X', [[-32, 80], [-32, 48], [32, 64]]],
   opamp2: ['X', [[-32, 80], [-32, 48], [0, 32], [0, 96], [32, 64]]]
 };
+const ASC_TWO_PIN = [[[16, 16], [16, 96]], [[16, 0], [16, 64]], [[0, 16], [0, 96]], [[0, 0], [0, 80]], [[0, 0], [0, 64]], [[16, 0], [16, 80]]];
 function ascTransform(rot, x, y) {
   switch (rot) {
     case 'R90': return [-y, x]; case 'R180': return [-x, -y]; case 'R270': return [y, -x];
@@ -968,7 +997,10 @@ function ascTransform(rot, x, y) {
 function parseAsc(text) {
   const wires = [], flags = [], syms = [], notes = [];
   let analysis = null;
-  for (const l of String(text).replace(/\r/g, '').split('\n')) {
+  const ascLines = String(text).replace(/\r/g, '').split('\n');
+  // .param directives sit in TEXT lines, several to a line when separated by \n
+  const params = spiceParams(ascLines.filter(l => /^TEXT\b/.test(l.trim())).flatMap(l => l.slice(l.indexOf('!') + 1).split('\\n')));
+  for (const l of ascLines) {
     const t = l.trim().split(/\s+/);
     if (t[0] === 'WIRE') wires.push(t.slice(1, 5).map(Number));
     else if (t[0] === 'FLAG') flags.push({ x: +t[1], y: +t[2], name: t[3] });
@@ -987,7 +1019,12 @@ function parseAsc(text) {
     const base = s.sym.split(/[\\/]/).pop().toLowerCase();
     const def = ASC_PINS[base] || (/opamp|^(lt|lm|ad|op|tl|ne|mcp)\d/.test(base) && /opamps/i.test(s.sym) ? ASC_PINS.opamp2 : null);
     if (!def) return null;
-    return { kind: def[0], pins: def[1].map(([px, py]) => { const [dx, dy] = ascTransform(s.rot, px, py); return [s.x + dx, s.y + dy]; }) };
+    const at = set => set.map(([px, py]) => { const [dx, dy] = ascTransform(s.rot, px, py); return [s.x + dx, s.y + dy]; });
+    // a two-lead symbol drawn with other pin positions than the standard one: use the layout whose pins both sit on a wire or flag
+    const onNet = ([x, y]) => flags.some(f => f.x === x && f.y === y) || wires.some(([x1, y1, x2, y2]) => (x - x1) * (y2 - y1) === (y - y1) * (x2 - x1) && x >= Math.min(x1, x2) && x <= Math.max(x1, x2) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2));
+    let pins = at(def[1]);
+    if (def[1].length === 2 && !pins.every(onNet)) { const alt = ASC_TWO_PIN.map(at).find(q => q.every(onNet)); if (alt) pins = alt; }
+    return { kind: def[0], pins };
   };
   const placed = [];
   for (const s of syms) {
@@ -1023,22 +1060,27 @@ function parseAsc(text) {
     const line = s.kind === 'X' ? `${prefix}${s.name} ${nodes.join(' ')} ${s.attr.Value || s.sym.split(/[\\/]/).pop()}`
       : s.kind === 'D' ? `${prefix}${s.name} ${nodes.join(' ')} ${/led/i.test(s.sym) ? 'LED' : (s.attr.Value || 'D')}`
       : `${prefix}${s.name} ${nodes.join(' ')} ${val}`;
-    const el = parseElementLine(line);
+    const el = parseElementLine(applyParams(line, params));
     if (el.skip) notes.push(el.skip); else elements.push(el);
   }
   return { elements, notes, analysis };
 }
 
-/* Elements → breadboard parts. Ground is the top − rail; the first positive supply node is the
-   top + rail and the first negative one the bottom − rail (otherwise the bottom − rail is ground). */
-function layoutCircuit(elements, opts = {}) {
-  const notes = [], parts = [];
-  const els = elements.slice();
+/* Elements → breadboard parts, laid out the way a student would build it:
+   - ground is the top − rail (and the bottom − rail, tied by a jumper once it is needed); the positive
+     supply is the top + rail and the negative supply the bottom + rail;
+   - every other node gets a column strip; parts lie flat along a row between two strips about four
+     columns apart, or stand between a strip and the rail above or below it;
+   - op-amps become DIP-8 chips across the center channel, with each pin's strip as that node's home.
+   The finished board is checked against the netlist: every lead must land on its node and no two
+   nodes may touch. Returns { parts, notes, mode, freq, netNames } or throws. */
+function layoutCircuit(elements) {
+  const notes = [], parts = [], leads = [];
+  const els = elements.map(e => Object.assign({}, e, { nodes: e.nodes.slice() }));
   let id = 0;
-  const used = new Set();
-  const uniq = nm => { let n = nm, k = 2; while (used.has(n)) n = nm + '_' + k++; used.add(n); return n; };
+  const names = new Set();
+  const uniq = nm => { let n = nm, k = 2; while (names.has(n)) n = nm + '_' + k++; names.add(n); return n; };
   const addPart = p => { p.id = 'p' + (++id); parts.push(p); return p; };
-  // op-amps: 3-pin ideal ones need supplies
   const ops = els.filter(e => e.kind === 'X');
   const srcs = els.filter(e => e.kind === 'V' && !e.ac);
   const supplyNode = sign => {
@@ -1052,97 +1094,223 @@ function layoutCircuit(elements, opts = {}) {
   // with op-amps, their supply pins name the rails; otherwise the first DC source to ground does
   let vpNet = supplyNode(1), vnNet = supplyNode(-1);
   if (ops.some(o => o.nodes.length === 3)) {
-    els.push({ kind: 'V', name: 'VCC', nodes: ['__VP', '0'], value: 12 }, { kind: 'V', name: 'VEE', nodes: ['0', '__VN'], value: 12 });
+    els.push({ kind: 'V', name: 'VCC', nodes: ['V+', '0'], value: 12 }, { kind: 'V', name: 'VEE', nodes: ['0', 'V−'], value: 12 });
     notes.push('The LTspice op-amp has no supply pins, so it was placed as an LM1458 with ±12 V supplies (VCC and VEE) added.');
-    for (const o of ops) if (o.nodes.length === 3) o.nodes = [o.nodes[0], o.nodes[1], '__VP', '__VN', o.nodes[2]];
+    for (const o of ops) if (o.nodes.length === 3) o.nodes = [o.nodes[0], o.nodes[1], 'V+', 'V−', o.nodes[2]];
   }
   if (ops.length) { vpNet = ops[0].nodes[2] === '0' ? null : ops[0].nodes[2]; vnNet = ops[0].nodes[3] === '0' ? null : ops[0].nodes[3]; }
-  // rails: a net that needs the other side of the board gets a free rail there, tied by a long jumper
-  const railNet = { TN: '0', TP: vpNet, BN: vnNet, BP: null };
-  const railUsed = { TP: new Set(), TN: new Set(), BP: new Set(), BN: new Set() };
+  if (vnNet === vpNet) vnNet = null;
+
+  /* ---- rails ---- */
+  const railNet = { TP: vpNet, TN: '0', BN: '0', BP: vnNet || vpNet };
+  // columns 30 and 29 are kept for the jumpers that tie the bottom rails to the top ones
+  const railUsed = { TP: new Set([29]), TN: new Set([30]), BN: new Set([30]), BP: new Set([29]) };
+  const tied = {};
+  const onRails = net => net === '0' || (net !== null && (net === vpNet || net === vnNet));
   const color = net => net === '0' ? '#2b2f33' : net === vnNet ? '#2b63c4' : net === vpNet ? '#d23b3b' : '#e3a514';
-  const wire = (a, b, net) => addPart({ type: 'wire', a, b, name: 'Jumper', color: color(net) });
-  let tieCol = 30;
-  const railFor = (net, top) => {
-    const mine = Object.keys(railNet).filter(r => railNet[r] === net);
-    const side = mine.find(r => (r[0] === 'T') === top);
-    if (side) return side;
-    const free = Object.keys(railNet).find(r => railNet[r] === null && (r[0] === 'T') === top);
-    if (free && mine.length) {
-      const c = tieCol--;
-      railNet[free] = net; railUsed[free].add(c); railUsed[mine[0]].add(c);
-      wire(mine[0] + c, free + c, net);
-      return free;
+  const wire = (a, b, net) => { addPart({ type: 'wire', a, b, name: 'Jumper', color: color(net) }); leads.push([a, net], [b, net]); };
+  const railFor = (net, top) => (top ? ['TP', 'TN'] : ['BN', 'BP']).find(r => railNet[r] === net) || null;
+  const takeRail = (r, c) => {
+    if (r === 'BN' && !tied.BN) { tied.BN = true; wire('TN30', 'BN30', '0'); }
+    if (r === 'BP' && railNet.BP === vpNet && !tied.BP) { tied.BP = true; wire('TP29', 'BP29', vpNet); }
+    railUsed[r].add(c);
+    return r + c;
+  };
+  const railCol = (r, c, offs) => { for (const o of offs) { const cc = c + o; if (cc >= 1 && cc <= COLS && !railUsed[r].has(cc)) return cc; } return null; };
+  const SPREAD = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 8, -8, 10, -10, 14, -14, 18, -18, 22, -22, 26, -26, 29, -29];
+
+  /* ---- column strips: 'U5' is a–e of column 5, 'L5' is f–j ---- */
+  const strips = new Map(), netStrips = new Map(), chipCols = new Set(), rowSpans = {};
+  const need = new Map(); // leads still to place on each node
+  for (const e of els) if (e.kind !== 'X' && e.nodes[0] !== e.nodes[1]) for (const n of e.nodes) need.set(n, (need.get(n) || 0) + 1);
+  const colOf = k => +k.slice(1);
+  const addStrip = (k, net, taken) => {
+    strips.set(k, { net, free: (k[0] === 'U' ? 'abcde' : 'fghij').split('').filter(r => r !== taken) });
+    if (net !== null) { if (!netStrips.has(net)) netStrips.set(net, []); netStrips.get(net).push(k); }
+  };
+  const take = (k, row, net) => { const s = strips.get(k); s.free = s.free.filter(r => r !== row); const h = row + colOf(k); leads.push([h, net]); return h; };
+  const spanFree = (row, c1, c2) => { const lo = Math.min(c1, c2), hi = Math.max(c1, c2); return !(rowSpans[row] || []).some(([a, b]) => Math.max(a, lo) < Math.min(b, hi)); };
+  const addSpan = (row, c1, c2) => { (rowSpans[row] = rowSpans[row] || []).push([Math.min(c1, c2), Math.max(c1, c2)]); };
+  const totalFree = net => (netStrips.get(net) || []).reduce((t, k) => t + strips.get(k).free.length, 0);
+  const inward = k => k[0] === 'U' ? 'edcba' : 'fghij'; // rows from the center channel outward
+  const PART_ROWS = { U: 'bcdea', L: 'ihgfj' };          // rows a and j are kept for the rails as long as possible
+  // the free strip nearest a wanted column; avoid is a column to stay at least two away from
+  const freeStrip = (half, want, avoid) => {
+    let best = null, bs = Infinity;
+    for (const h of [half, half === 'U' ? 'L' : 'U']) {
+      for (let c = 1; c <= COLS; c++) {
+        const k = h + c;
+        if (strips.has(k) || chipCols.has(c)) continue;
+        const s = Math.abs(c - want) + (avoid && Math.abs(c - avoid) < 2 ? 12 : 0) + (c < 2 || c > 28 ? 0.5 : 0);
+        if (s < bs) { bs = s; best = k; }
+      }
+      if (best) return best;
     }
-    return mine[0];
+    throw new Error('This circuit has more nodes than a half-size breadboard can hold.');
   };
-  const railHole = (r, near) => {
-    for (let d = 0; d < 30; d++) for (const c of [near - d, near + d]) if (c >= 1 && c <= 30 && !railUsed[r].has(c)) { railUsed[r].add(c); return r + c; }
-    throw new Error('Ran out of rail holes.');
+  // a jumper between two strips of one node
+  const link = (k0, k1, net) => {
+    const s0 = strips.get(k0), s1 = strips.get(k1), c0 = colOf(k0), c1 = colOf(k1);
+    let r0, r1;
+    if (k0[0] === k1[0]) {
+      const common = inward(k0).split('').filter(r => s0.free.includes(r) && s1.free.includes(r));
+      r0 = r1 = common.find(r => spanFree(r, c0, c1)) || common[0];
+      if (r0) addSpan(r0, c0, c1);
+    }
+    if (!r0) { r0 = inward(k0).split('').find(r => s0.free.includes(r)); r1 = inward(k1).split('').find(r => s1.free.includes(r)); }
+    wire(take(k0, r0, net), take(k1, r1, net), net);
+    leads.length -= 2; // take() already recorded both ends
   };
-  const onRails = net => net === '0' || net === vpNet || net === vnNet;
-  // strips: 'U5' (a–e) or 'L5' (f–j); each keeps its last hole free for a jumper to the next strip of its net
-  const strips = new Map(), netStrips = new Map(), chipCols = new Set();
-  const ROWS = { U: ['a', 'b', 'c', 'd', 'e'], L: ['j', 'i', 'h', 'g', 'f'] };
-  const order = [];
-  for (const h of ['U', 'L']) { for (let c = 4; c <= 30; c += 2) order.push(h + c); for (let c = 5; c <= 30; c += 2) order.push(h + c); }
-  const takeHole = (k, last) => { const s = strips.get(k); return last ? s.free.pop() : s.free.length > 1 ? s.free.shift() : null; };
-  const linkToRail = (k, net) => wire(takeHole(k, true), railHole(railFor(net, k[0] === 'U'), +k.slice(1)), net);
-  // a strip joins its net: by jumper to the net's previous strip, or to its rail
-  const joinStrip = (k, net) => {
-    const prev = (netStrips.get(net) || []).slice(-1)[0];
-    if (!netStrips.has(net)) netStrips.set(net, []);
-    netStrips.get(net).push(k);
-    if (prev) wire(takeHole(prev, true), takeHole(k, true), net);
-    else if (onRails(net)) linkToRail(k, net);
-  };
-  // a new strip goes about three columns from the part's other lead, so parts stay short and readable
-  const newStrip = (net, prefer, near) => {
-    const score = x => (x[0] === prefer ? 0 : 100) + (near ? Math.abs(Math.abs(+x.slice(1) - near) - 3) : order.indexOf(x) / 100);
-    const k = order.filter(x => !strips.has(x) && !chipCols.has(+x.slice(1))).sort((a, b) => score(a) - score(b))[0];
-    if (!k) throw new Error('This circuit has more nodes than a half-size breadboard can hold.');
-    strips.set(k, { net, free: ROWS[k[0]].map(r => r + k.slice(1)) });
-    joinStrip(k, net);
+  // give a node one more strip, linked to one it already has
+  const extend = (net, half, want, avoid) => {
+    const from = netStrips.get(net).filter(k => strips.get(k).free.length).sort((a, b) => strips.get(b).free.length - strips.get(a).free.length)[0];
+    if (!from) throw new Error(`Node ${net} has more connections than its strips can hold.`);
+    half = half || from[0];
+    const across = (half === 'U' ? 'U' : 'L') + colOf(from);
+    const k = half !== from[0] && want === undefined && !strips.has(across) && !chipCols.has(colOf(from)) ? across : freeStrip(half, want === undefined ? colOf(from) : want, avoid);
+    addStrip(k, net);
+    link(from, k, net);
     return k;
   };
-  const holeFor = (net, prefer, near) => {
-    if (onRails(net)) return railHole(railFor(net, prefer !== 'L'), near || 3);
-    for (const k of netStrips.get(net) || []) { const h = takeHole(k); if (h) return h; }
-    return takeHole(newStrip(net, prefer, near));
+  // keep one hole in hand for the jumper to the node's next strip
+  const ensure = net => {
+    if (!(netStrips.get(net) || []).length) return;
+    const f = totalFree(net);
+    if (f === 0) throw new Error(`Node ${net} has more connections than its strips can hold.`);
+    if (f === 1 && need.get(net) > 1) extend(net);
   };
-  // chips
-  const units = ops.map(o => {
-    const m = /741/.test(o.model) ? 'U-LM741' : /358/.test(o.model) ? 'U-LM358' : 'U-LM1458';
-    return { o, m };
-  });
+  const used = net => need.set(net, (need.get(net) || 1) - 1);
+  let cursor = 5;
+  const freshStrip = (net, half) => { const k = freeStrip(half, cursor); cursor = Math.min(28, colOf(k) + 4); addStrip(k, net); return k; };
+
+  /* ---- chips ---- */
   const chips = [];
-  for (const u of units) {
-    const c = CATALOG_BY_ID[u.m];
-    const open = chips.find(ch => ch.m === u.m && ch.units.length < c.units.length && ch.vp === u.o.nodes[2] && ch.vn === u.o.nodes[3]);
-    if (open) open.units.push(u.o); else chips.push({ m: u.m, units: [u.o], vp: u.o.nodes[2], vn: u.o.nodes[3] });
+  for (const o of ops) {
+    const m = /741/.test(o.model) ? 'U-LM741' : /358/.test(o.model) ? 'U-LM358' : 'U-LM1458';
+    const c = CATALOG_BY_ID[m];
+    const open = chips.find(ch => ch.m === m && ch.units.length < c.units.length && ch.vp === o.nodes[2] && ch.vn === o.nodes[3]);
+    if (open) open.units.push(o); else chips.push({ m, units: [o], vp: o.nodes[2], vn: o.nodes[3] });
   }
   if (chips.length > 4) throw new Error('More than four op-amp chips will not fit on a half-size breadboard.');
+  const chipAt = [[], [14], [9, 20], [6, 14, 22], [4, 11, 18, 25]][chips.length];
+  chips.forEach((ch, i) => { for (let c = chipAt[i]; c <= chipAt[i] + 3; c++) chipCols.add(c); });
   chips.forEach((ch, i) => {
-    const col = [16, 23, 8, 1][i];
-    for (let c = col - 1; c <= col + 4; c++) chipCols.add(c);
-    const cat = CATALOG_BY_ID[ch.m], pins = footprintHoles('dip8', 'f' + col);
+    const col = chipAt[i], cat = CATALOG_BY_ID[ch.m], pins = footprintHoles('dip8', 'f' + col);
     const pinNet = new Array(8).fill(null);
     pinNet[cat.vp] = ch.vp; pinNet[cat.vn] = ch.vn;
     ch.units.forEach((o, k) => { const u = cat.units[k]; pinNet[u.inp] = o.nodes[0]; pinNet[u.inn] = o.nodes[1]; pinNet[u.out] = o.nodes[4]; });
-    const name = uniq(ch.units[0].name.replace(/^X/i, '').replace(/[A-Z]$/, '') || 'U' + (i + 1));
-    addPart(Object.assign({ type: 'OPAMP', model: ch.m, name, pins }, JSON.parse(JSON.stringify(cat.defaults || {}))));
+    addPart(Object.assign({ type: 'OPAMP', model: ch.m, name: uniq(ch.units[0].name.replace(/^X/i, '').replace(/[A-Z]$/, '') || 'U' + (i + 1)), pins }, JSON.parse(JSON.stringify(cat.defaults || {}))));
     pins.forEach((h, k) => {
-      const sk = (h[0] <= 'e' ? 'U' : 'L') + parseHole(h).c;
-      strips.set(sk, { net: pinNet[k], free: ROWS[sk[0]].map(r => r + sk.slice(1)).filter(x => x !== h) });
-      if (pinNet[k]) joinStrip(sk, pinNet[k]);
+      const net = pinNet[k], top = h[0] === 'e', sk = (top ? 'U' : 'L') + parseHole(h).c, c = colOf(sk);
+      if (net === null) { addStrip(sk, null, h[0]); return; }
+      leads.push([h, net]);
+      if (onRails(net)) {
+        // a supply pin: a jumper straight to the rail on its side of the board
+        addStrip(sk, null, h[0]);
+        strips.get(sk).net = net;
+        let r = railFor(net, top), from = top ? 'a' : 'j';
+        if (!r) r = railFor(net, !top);
+        const cc = railCol(r, c, SPREAD);
+        strips.get(sk).free = strips.get(sk).free.filter(x => x !== from);
+        wire(from + c, takeRail(r, cc), net);
+        return;
+      }
+      const prev = (netStrips.get(net) || []).slice(-1)[0];
+      addStrip(sk, net, h[0]);
+      if (prev) link(prev, sk, net);
     });
   });
+
+  /* ---- two-lead parts ---- */
+  // a lead on a strip node and the other on a rail: stand the part between the strip and the rail
+  const toRail = (net, rail) => {
+    if (!(netStrips.get(net) || []).length) freshStrip(net, railFor(rail, true) ? 'U' : 'L');
+    ensure(net);
+    for (let pass = 0; pass < 2; pass++) {
+      let best = null;
+      for (const k of netStrips.get(net)) {
+        const s = strips.get(k), top = k[0] === 'U', c = colOf(k), r = railFor(rail, top);
+        if (!s.free.length || !r) continue;
+        const rows = top ? 'abcde' : 'jihgf';
+        let cand;
+        if (s.free.includes(rows[0]) && !railUsed[r].has(c)) cand = { cost: 0, k, row: rows[0], r, c };
+        else {
+          const row = rows.split('').find(x => s.free.includes(x)), cc = railCol(r, c, [2, -2, 3, -3, 1, -1, 4, -4, 5, -5, 0].concat(SPREAD));
+          if (cc !== null) cand = { cost: 5 + rows.indexOf(row) + Math.abs(cc - c) * 0.2, k, row, r, c: cc };
+        }
+        if (cand && (!best || cand.cost < best.cost)) best = cand;
+      }
+      // no room on this side, or the rail is on the other side of the board: carry the node across the channel
+      if (pass === 0 && (!best || best.cost > 4)) {
+        const ks = netStrips.get(net), half = ks.some(k => k[0] === 'U' && railFor(rail, false)) ? 'L' : ks.some(k => k[0] === 'L' && railFor(rail, true)) ? 'U' : null;
+        const have = half && ks.some(k => k[0] === half && strips.get(k).free.length);
+        if (half && !have && totalFree(net) >= 1) { extend(net, half); continue; }
+      }
+      if (!best) throw new Error(`Could not reach a rail from node ${net}.`);
+      return [take(best.k, best.row, net), takeRail(best.r, best.c)];
+    }
+  };
+  const pairCost = (k1, k2) => {
+    const s1 = strips.get(k1), s2 = strips.get(k2), c1 = colOf(k1), c2 = colOf(k2), d = Math.abs(c1 - c2);
+    if (k1[0] === k2[0]) {
+      const pref = PART_ROWS[k1[0]].split('');
+      const common = pref.filter(r => s1.free.includes(r) && s2.free.includes(r));
+      const clear = common.find(r => spanFree(r, c1, c2));
+      const base = d < 2 ? 20 : d <= 6 ? Math.abs(d - 4) * 0.5 : 1 + (d - 6) * 1.5;
+      if (clear) return { cost: base, k1, k2, r1: clear, r2: clear };
+      if (common.length) return { cost: base + 3, k1, k2, r1: common[0], r2: common[0] };
+      return { cost: base + 6, k1, k2, r1: pref.find(r => s1.free.includes(r)), r2: pref.find(r => s2.free.includes(r)) };
+    }
+    let overChip = false;
+    for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) if (chipCols.has(c)) overChip = true;
+    return { cost: 5 + d * 0.75 + (overChip ? 25 : 0), k1, k2, r1: inward(k1).split('').find(r => s1.free.includes(r)), r2: inward(k2).split('').find(r => s2.free.includes(r)) };
+  };
+  const bestPair = (n1, n2) => {
+    let best = null;
+    for (const k1 of netStrips.get(n1)) for (const k2 of netStrips.get(n2)) {
+      if (!strips.get(k1).free.length || !strips.get(k2).free.length) continue;
+      const c = pairCost(k1, k2);
+      if (!best || c.cost < best.cost) best = c;
+    }
+    return best;
+  };
+  // both leads on strip nodes: lie the part along a row
+  const between = (n1, n2) => {
+    const has = n => (netStrips.get(n) || []).length > 0;
+    if (!has(n1) && !has(n2)) freshStrip(n1, 'U');
+    ensure(n1); ensure(n2);
+    for (const [a, b] of [[n1, n2], [n2, n1]]) if (has(a) && !has(b)) {
+      // the new node goes about four columns from the best strip of the one already on the board
+      const k = netStrips.get(a).filter(x => strips.get(x).free.length).sort((x, y) => strips.get(y).free.length - strips.get(x).free.length)[0];
+      const c = colOf(k), right = freeStrip(k[0], c + 4, c), left = freeStrip(k[0], c - 4, c);
+      const score = x => (x[0] === k[0] ? 0 : 10) + Math.abs(Math.abs(colOf(x) - c) - 4);
+      const pick = score(right) <= score(left) ? right : left;
+      addStrip(pick, b);
+      cursor = Math.max(cursor, Math.min(28, colOf(pick) + 4));
+    }
+    let best = bestPair(n1, n2);
+    // an awkward fit (neighbouring columns, across a chip, no shared row): give one node a new strip beside the other
+    if (!best || best.cost >= 8) {
+      for (const [a, b] of [[n1, n2], [n2, n1]]) {
+        if (totalFree(b) < 1) continue;
+        const k = netStrips.get(a).filter(x => strips.get(x).free.length).sort((x, y) => strips.get(y).free.length - strips.get(x).free.length)[0];
+        if (!k) continue;
+        const c = colOf(k);
+        extend(b, k[0], c + (c <= 15 ? 4 : -4), c);
+        break;
+      }
+      best = bestPair(n1, n2);
+    }
+    if (!best) throw new Error(`Could not place a part between nodes ${n1} and ${n2}.`);
+    if (best.r1 === best.r2) addSpan(best.r1, colOf(best.k1), colOf(best.k2));
+    return [take(best.k1, best.r1, n1), take(best.k2, best.r2, n2)];
+  };
+
   // supplies between rails first, then always the part with the most nodes already on the board,
   // so each new strip lands next to what it connects to
-  const rest = els.filter(e => e.kind !== 'X'), two = [];
-  const known = new Set();
+  const rest = els.filter(e => e.kind !== 'X'), two = [], known = new Set();
   while (rest.length) {
-    const sc = e => (e.kind === 'V' && onRails(e.nodes[0]) && onRails(e.nodes[1]) ? 10 : 0) + e.nodes.reduce((t, n) => t + (onRails(n) ? 1 : netStrips.has(n) ? 2 : known.has(n) ? 1 : 0), 0);
+    const sc = e => (e.kind === 'V' && onRails(e.nodes[0]) && onRails(e.nodes[1]) ? 10 : 0) + e.nodes.reduce((t, n) => t + (onRails(n) ? 1 : netStrips.has(n) ? 2 : known.has(n) ? 2 : 0), 0) + (e.kind === 'V' ? 0.5 : 0);
     let bi = 0; rest.forEach((e, i) => { if (sc(e) > sc(rest[bi])) bi = i; });
     const e = rest.splice(bi, 1)[0]; e.nodes.forEach(n => known.add(n)); two.push(e);
   }
@@ -1151,35 +1319,45 @@ function layoutCircuit(elements, opts = {}) {
     const [n1, n2] = e.nodes;
     if (n1 === n2) { notes.push(`${e.name}: both ends are on the same node, so it was left out.`); continue; }
     let a, b;
-    const isSrc = e.kind === 'V', railPair = isSrc && onRails(n1) && onRails(n2);
-    if (railPair) { const c = srcCol; srcCol += 2; a = holeFor(n1, n1 === vnNet ? 'L' : 'U', c); b = holeFor(n2, n2 === vnNet ? 'L' : 'U', c); }
-    else {
-      // place the lead whose node is already on the board first, then the other one near it
-      const known = n => onRails(n) || netStrips.has(n);
-      const first = !known(n1) && known(n2) ? 1 : 0;
-      const nets = first ? [n2, n1] : [n1, n2], h = [];
-      h[0] = onRails(nets[0]) && !onRails(nets[1]) ? null : holeFor(nets[0], 'U');
-      if (h[0] === null) { h[1] = holeFor(nets[1], 'U'); h[0] = holeFor(nets[0], h[1][0] <= 'e' ? 'U' : 'L', parseHole(h[1]).c); }
-      else h[1] = holeFor(nets[1], h[0][0] <= 'e' || RAILS.includes(h[0].slice(0, 2)) ? 'U' : 'L', parseHole(h[0]).c);
-      [a, b] = first ? [h[1], h[0]] : h;
-    }
+    if (onRails(n1) && onRails(n2)) {
+      // rail to rail: on the top pair when both nodes are there, otherwise the bottom pair, otherwise across the board
+      const side = [true, false].find(t => railFor(n1, t) && railFor(n2, t));
+      const r1 = side === undefined ? railFor(n1, true) || railFor(n1, false) : railFor(n1, side), r2 = side === undefined ? railFor(n2, true) || railFor(n2, false) : railFor(n2, side);
+      let c = srcCol; while (c < COLS && (railUsed[r1].has(c) || railUsed[r2].has(c))) c++;
+      srcCol = c + (e.kind === 'V' ? 3 : 2);
+      a = takeRail(r1, c); b = takeRail(r2, c);
+    } else if (onRails(n1)) { [b, a] = toRail(n2, n1); used(n2); }
+    else if (onRails(n2)) { [a, b] = toRail(n1, n2); used(n1); }
+    else { [a, b] = between(n1, n2); used(n1); used(n2); }
+    leads.push([a, n1], [b, n2]);
     const p = { name: uniq(e.name) };
     if (e.kind === 'R') Object.assign(p, { type: 'R', model: 'R-CF' }, CATALOG_BY_ID['R-CF'].defaults, { value: e.value });
     else if (e.kind === 'C') Object.assign(p, { type: 'C', model: 'C-X7R' }, CATALOG_BY_ID['C-X7R'].defaults, { value: e.value }, e.rser ? { esr: e.rser } : {});
     else if (e.kind === 'L') Object.assign(p, { type: 'L', model: 'L-IDEAL' }, CATALOG_BY_ID['L-IDEAL'].defaults, { value: e.value, dcr: e.rser || 0 });
     else if (e.kind === 'D') {
       const led = /led/i.test(e.model);
-      const color = led ? (Object.keys(LED_TYPES).find(c => new RegExp(c, 'i').test(e.model)) || 'red') : null;
-      const m = led ? 'LED-' + color : /400\d/.test(e.model) ? 'D-1N4001' : 'D-1N4148';
+      const col = led ? (Object.keys(LED_TYPES).find(c => new RegExp(c, 'i').test(e.model)) || 'red') : null;
+      const m = led ? 'LED-' + col : /400\d/.test(e.model) ? 'D-1N4001' : 'D-1N4148';
       Object.assign(p, { type: CATALOG_BY_ID[m].type, model: m }, JSON.parse(JSON.stringify(CATALOG_BY_ID[m].defaults || {})));
       if (!led && !/4148|400\d/.test(e.model)) notes.push(`${e.name}: diode model ${e.model} was placed as a 1N4148.`);
-    } else if (e.ac) Object.assign(p, { type: 'VAC', model: e.rser > 0 ? 'VAC-GEN' : 'VAC-IDEAL', value: e.value, phase: e.phase || 0 }, e.rser > 0 ? { rint: e.rser } : {});
+    } else if (e.ac) Object.assign(p, { type: 'VAC', model: e.rser > 0 ? 'VAC-GEN' : 'VAC-IDEAL', value: e.value, phase: e.phase || 0 }, e.rser > 0 ? { rint: e.rser } : {}, e.dc ? { dc: e.dc } : {});
     else Object.assign(p, { type: 'VDC', model: 'V-IDEAL', value: e.value }, e.rser > 0 ? { rint: e.rser } : {});
     addPart(Object.assign(p, { a, b }));
   }
-  addPart({ type: 'GND', a: railHole('TN', 2), b: null, name: 'GND' });
+  addPart({ type: 'GND', a: 'TN' + railCol('TN', 28, SPREAD), b: null, name: 'GND' });
+
+  /* ---- check the board against the netlist ---- */
+  const topo = topology(parts), rootNode = new Map(), nodeRoot = new Map();
+  for (const [h, net] of leads) {
+    const r = topo.find(baseNetOfHole(h));
+    if ((rootNode.has(r) && rootNode.get(r) !== net) || (nodeRoot.has(net) && nodeRoot.get(net) !== r)) throw new Error(`The layout did not come out right around node ${net}, so the board was not built. Please report this netlist.`);
+    rootNode.set(r, net); nodeRoot.set(net, r);
+  }
+  // which LTspice node each strip and rail carries, for the bench to show
+  const netNames = {};
+  for (const b of topo.parent.keys()) { const n = rootNode.get(topo.find(b)); if (n !== undefined) netNames[b] = n; }
   const acSrc = els.find(e => e.kind === 'V' && e.ac);
-  return { parts, notes, mode: acSrc ? 'AC' : 'DC', freq: (acSrc && acSrc.freq) || null };
+  return { parts, notes, mode: acSrc ? 'AC' : 'DC', freq: (acSrc && acSrc.freq) || null, netNames };
 }
 
 /* Text of a netlist or .asc file → board, or { error } */
@@ -1314,6 +1492,7 @@ function meterMeasure(parts, opts, m) {
   if (mode === 'AC') { const a = nodeVolt(r, m.red, true), b = nodeVolt(r, m.black, true); vac = Math.hypot(a[0] - b[0], a[1] - b[1]); }
   const scale = useJack ? 1 / rm : 1;
   const dc = vdc * scale, acm = vac * scale;
+  out.dcPart = dc; out.acPart = acm;
   if (useJack) {
     const peak = Math.abs(dc) + acm * Math.SQRT2;
     if (peak > METER.fuse[fuseKey]) {
@@ -1565,13 +1744,45 @@ function scopeMeasure(parts, opts, sc) {
     let ph = [0, 0];
     if (mode === 'AC') { const a = nodeVolt(r, sc[k], true), b = nodeVolt(r, clip, true); ph = [a[0] - b[0], a[1] - b[1]]; }
     out.ch[q] = { dc, ph };
+    // a tip on an op-amp output: the real waveform cannot pass the chip's output swing limits
+    const root = r.topo.find(baseNetOfHole(sc[k]));
+    if (clip === ref || !sc.gnd) for (const p of r.topo.els) {
+      if (p.type !== 'OPAMP') continue;
+      const c = catalogOf(p), pv = r.dc.parts[p.id] && r.dc.parts[p.id].pinV;
+      if (pv && c.units.some(u => r.topo.find(baseNetOfHole(p.pins[u.out])) === root) && pv[c.vp][0] - pv[c.vn][0] > 1) {
+        out.ch[q].clip = [pv[c.vn][0] + c.model.headLo, pv[c.vp][0] - c.model.headHi];
+        if (scopeClips(out.ch[q]) && !out.notes.some(n => n.includes('clipping'))) out.notes.push(`${p.name} is clipping: its output cannot swing past ${fmtEng(out.ch[q].clip[0], 'V')} and ${fmtEng(out.ch[q].clip[1], 'V')}, so the top or bottom of the sine is flattened. Lower the input or the gain.`);
+      }
+    }
   });
   return out;
+}
+/* The instruments read the board itself, whatever analysis the readings panel shows: with an AC
+   source on the board they see its sine wave riding on the DC levels. */
+function instrumentOpts(parts, opts = {}) {
+  return { mode: parts.some(p => p.type === 'VAC') ? 'AC' : 'DC', freq: opts.freq || 1000 };
+}
+/* one sample of a trace: the sine on its DC level, flattened where an op-amp output runs into its rails */
+function scopeSample(t, wt, coupling = 'DC') {
+  let v = t.dc + Math.SQRT2 * cabs(t.ph) * Math.cos(wt + cdeg(t.ph) * Math.PI / 180);
+  if (t.clip) v = Math.max(t.clip[0], Math.min(t.clip[1], v));
+  return coupling === 'AC' ? v - scopeMean(t) : v;
+}
+function scopeClips(t) { const pk = Math.SQRT2 * cabs(t.ph); return !!t.clip && (t.dc + pk > t.clip[1] + 1e-9 || t.dc - pk < t.clip[0] - 1e-9); }
+function scopeMean(t) {
+  if (!scopeClips(t)) return t.clip ? Math.max(t.clip[0], Math.min(t.clip[1], t.dc)) : t.dc;
+  let s = 0; for (let k = 0; k < 360; k++) s += scopeSample(t, k * Math.PI / 180);
+  return s / 360;
 }
 /* what the scope's measure menu shows for a trace: AC coupling drops the DC part */
 function scopeStats(t, freq, coupling = 'DC') {
   if (!t) return null;
-  const dc = coupling === 'AC' ? 0 : t.dc, pk = Math.SQRT2 * cabs(t.ph), ac = cabs(t.ph) > 1e-9;
+  if (scopeClips(t)) {
+    let mx = -Infinity, mn = Infinity, sq = 0;
+    for (let k = 0; k < 360; k++) { const v = scopeSample(t, k * Math.PI / 180, coupling); mx = Math.max(mx, v); mn = Math.min(mn, v); sq += v * v; }
+    return { vpp: mx - mn, vmax: mx, vmin: mn, vavg: coupling === 'AC' ? 0 : scopeMean(t), vrms: Math.sqrt(sq / 360), freq, period: 1 / freq, deg: cdeg(t.ph), clipped: true };
+  }
+  const dc = coupling === 'AC' ? 0 : scopeMean(t), pk = Math.SQRT2 * cabs(t.ph), ac = cabs(t.ph) > 1e-9;
   return { vpp: 2 * pk, vmax: dc + pk, vmin: dc - pk, vavg: dc, vrms: Math.hypot(dc, cabs(t.ph)), freq: ac ? freq : 0, period: ac ? 1 / freq : 0, deg: cdeg(t.ph) };
 }
 /* phase of CH2 relative to CH1, in (−180°, 180°]; positive means CH2 leads */
@@ -1594,7 +1805,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     E_BASE, SERIES_TOL, POWER_RATINGS, LED_TYPES, CATALOG, CATALOG_BY_ID, catalogOf, snap, isInSeries, parseEng, fmtEng, rkm, colorBands, smdCode,
     capCodeEncode, capCodeDecode, baseNetOfHole, holesOfBaseNet, footprintHoles, leadsOf, csolve, cabs, cdeg, topology, analyze, spiceNetlist, SAMPLE_CIRCUITS, sampleParts,
-    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice, METER, METER_RANGES, meterDisplay, meterMeasure,
-    cadd, polar, fmtRect, fmtPolar, parsePhasor, phasorMatches, parseElements, acTwoWays, HOMEWORK, homeworkChecks, SCOPE, scopeMeasure, scopeStats, scopePhase, scopeAutoscale
+    spiceValue, parseNetlist, parseAsc, layoutCircuit, importLTspice, decodeSpiceFile, instrumentOpts, METER, METER_RANGES, meterDisplay, meterMeasure,
+    cadd, polar, fmtRect, fmtPolar, parsePhasor, phasorMatches, parseElements, acTwoWays, HOMEWORK, homeworkChecks, SCOPE, scopeMeasure, scopeStats, scopePhase, scopeAutoscale, scopeSample, scopeClips, parseHole
   };
 }
