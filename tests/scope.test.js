@@ -44,3 +44,16 @@ test('autoscale picks 1-2-5 steps that fit the trace', () => {
   assert.equal(a.vdiv, 50); // 141 V peak needs 50 V/div to stay on 3.5 divisions
   assert.equal(a.tdiv, 2e-4); // two 1 ms cycles across 10 divisions
 });
+
+test('instruments see the sine even when the readings panel is in DC, and an op-amp output clips at its rails', () => {
+  const parts = E.sampleParts('opamp');
+  assert.equal(E.instrumentOpts(parts, { freq: 1000 }).mode, parts.some(p => p.type === 'VAC') ? 'AC' : 'DC');
+  const r = E.importLTspice('* inv\nV1 in 0 SINE(0 2.828 1k)\nR1 in n 1k\nR2 n out 10k\nXU1 0 n vcc vee out LM741\nVP vcc 0 12\nVN 0 vee 12');
+  const u = r.parts.find(p => p.type === 'OPAMP');
+  const sc = E.scopeMeasure(r.parts, E.instrumentOpts(r.parts, { freq: 1000 }), { ch1: u.pins[5], ch2: null, gnd: null });
+  // 2 V rms × 10 would be 56 V peak to peak; the LM741 on ±12 V stops 2 V short of each rail
+  assert.ok(E.scopeClips(sc.ch[0]));
+  const st = E.scopeStats(sc.ch[0], 1000);
+  close(st.vmax, 10, 1e-2); close(st.vmin, -10, 1e-2); close(st.vpp, 20, 1e-2);
+  assert.ok(sc.notes.some(n => n.includes('clipping')));
+});
