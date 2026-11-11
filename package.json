@@ -1,0 +1,9 @@
+{
+  "name": "breadboard-bench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ELT 1206 study bench: breadboard DC/AC solver, sample circuits and calculators with worked steps.",
+  "scripts": {
+    "test": "node --test tests/engine.test.js tests/devices.test.js tests/import.test.js tests/meter.test.js"
+  }
+}
